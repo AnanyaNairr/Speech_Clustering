@@ -1,0 +1,16 @@
+
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.streamlit/secrets.toml
+
+# Original and downloaded audio datasets
+data/raw/
+data/balanced_subset/
+*.wav
+*.zip
+
+# Local environment files
+.env
