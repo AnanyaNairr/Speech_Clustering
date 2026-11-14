@@ -4,117 +4,264 @@ An end-to-end machine learning system and interactive web application designed t
 
 ---
 
-## 🌟 Key Features
+## 📌 Project Overview
 
-1. **Interactive Audio Command Deck & Auditory Auditioning:**
-   - **Step 1 Audio Deck:** Click any of the 10 core command cards (`yes`, `no`, `up`, `down`, `left`, `right`, `on`, `off`, `stop`, `go`) to listen to authentic 1.0-second WAV recordings directly from the dataset.
-   - **Speaker Shuffling (🔀 Next Voice):** Cycle through different volunteer speakers (accents, genders, speech speeds) for every command word.
-   - **Master Tour Player (▶ Play All):** Sequentially plays all 10 vocabulary commands with real-time card focus and glowing highlights.
-   - **Live Audio Equalizer & Waveform Spectrogram:** Animated 4-bar equalizer on active cards and a real-time reactive waveform display on the master HUD ribbon.
-2. **Interactive Acoustic Analysis & Exploration:**
-   - **A/B Confusable Pairs Audio Player (Step 4):** Click `🔊 Compare A vs B` on any confusable pair row (e.g. `GO` vs `NO`, `STOP` vs `GO`) to hear both clips played sequentially with visual timing indicators, exposing why rhyming formants (like `/oʊ/`) pose high confusion risks.
-   - **PCA Scatter Point Audio Explorer (Step 4):** Click any data point among the 2,000 samples on the 2D PCA projection to open the *Clip Inspector*, revealing the spoken word, cluster assignment, speaker ID, exact coordinates, and a play button to hear that exact clip.
-   - **Guided 5-Step Workflow:** Clean and intuitive progression from raw data loading to preprocessing, validation metrics, acoustic group exploration, and responsible-use reporting.
-3. **Live Microphone Voice Matcher (Step 5):**
-   - **Reactive Oscilloscope Visualizer:** HTML5 Canvas drawing real-time sine wave and spectrum glow during microphone recording.
-   - **Dynamic Decibel (VU) Meter:** Visual volume indicator confirming speech energy capture.
-   - **Instant Nearest-Exemplar Matching:** Projects the user's voice clip onto the PCA map, identifies the closest cluster, and ranks similarity to core commands.
-4. **Accessible Design:**
-   - WCAG AA compliant contrast ratio (> 4.5:1).
-   - Accessible keyboard navigation, visible focus indicators, and ARIA attributes.
-   - Okabe-Ito color-blind safe palette.
-   - Instant Dark Mode and Light Mode toggle.
-5. **100% Offline & Self-Contained:**
-   - Local Plotly.js library included.
-   - No external CDNs or cloud services required.
-   - Fast sub-second cached pipeline startup.
+Acoustic Feature Clustering for Hands-Free Accessibility Control Applications is an end-to-end machine learning project designed to analyze acoustic similarities among voice commands and improve the safety and reliability of hands-free accessibility systems.
+
+The project uses audio recordings from the Google Speech Commands Dataset to extract 45 acoustic features and perform unsupervised clustering using K-Means and K-Medians algorithms. Principal Component Analysis (PCA) is used for dimensionality reduction and visualization, while clustering evaluation metrics help assess the quality and stability of the generated clusters.
+
+An interactive web application is also developed to enable audio auditioning, acoustic comparison, PCA exploration, and live microphone-based voice matching.
+
+The primary objective is to identify potentially confusing voice commands and support the design of safer, more distinguishable command vocabularies for assistive technologies.
 
 ---
 
 ## 📂 Project Directory Structure
 
-```
+```text
 Int396/
-├── Dataset/                     # Google Speech Commands 10 core command folders
-│   ├── yes/, no/, up/, down/, left/, right/, on/, off/, stop/, go/
-├── backend/                     # Python FastAPI server & ML modules
-│   ├── app.py                   # FastAPI application & REST endpoints
-│   ├── feature_extractor.py     # 45-feature extraction using librosa & soundfile
-│   ├── preprocessing.py         # Relevance review, correlation filtering, StandardScaler
-│   ├── clustering.py            # Euclidean K-Means & Manhattan K-Medians, metrics & stability
-│   ├── analysis.py              # PCA, loadings, cluster profiles, confusable pairs, ANOVA
-│   ├── try_it.py                # Live audio processing for "Try it yourself" demo
-│   └── report_generator.py      # Automated PDF (ReportLab) & HTML report generator
-├── frontend/                    # Single-Page Web Application
-│   ├── index.html               # Semantic, accessible HTML5 user interface
+├── Dataset/
+│   ├── yes/, no/, up/, down/, left/
+│   ├── right/, on/, off/, stop/, go/
+├── backend/
+│   ├── app.py
+│   ├── feature_extractor.py
+│   ├── preprocessing.py
+│   ├── clustering.py
+│   ├── analysis.py
+│   ├── try_it.py
+│   └── report_generator.py
+├── frontend/
+│   ├── index.html
 │   ├── css/
-│   │   └── style.css            # Dark/light theme styles, WCAG AA contrast, responsive grid
+│   │   └── style.css
 │   └── js/
-│       ├── app.js               # 5-step stepper, state management, API synchronization
-│       ├── charts.js            # Plotly.js charts (Elbow, Silhouette, DB, PCA 2D/3D, Heatmaps)
-│       ├── audio_recorder.js    # Live microphone recording & WAV processor
-│       └── plotly.min.js        # Vendored offline Plotly.js library
-├── data/                        # Output datasets, cache, and reports
-│   ├── features.csv             # Extracted 45 acoustic features
-│   ├── features_clean.csv       # Preprocessed features table
-│   ├── acoustic_clustering_report.html # Standalone print-ready report
-│   └── acoustic_clustering_report.pdf  # Formatted publication-ready PDF report
-├── notebooks/                   # Jupyter Notebook submission
-│   └── acoustic_feature_clustering.ipynb # Fully documented notebook with pre-rendered outputs
-├── docs/                        # Research and documentation
-│   └── final_written_summary.md # 1-page submission-ready report summary
-├── run_pipeline.py              # Standalone CLI script running the complete ML pipeline
-├── run_server.py                # Web server launcher script
-├── build_notebook.py            # Script that built and pre-rendered the notebook
-├── requirements.txt             # Project Python dependencies
-└── README.md                    # Project documentation
+│       ├── app.js
+│       ├── charts.js
+│       ├── audio_recorder.js
+│       └── plotly.min.js
+├── data/
+│   ├── features.csv
+│   ├── features_clean.csv
+│   ├── acoustic_clustering_report.html
+│   └── acoustic_clustering_report.pdf
+├── notebooks/
+│   └── acoustic_feature_clustering.ipynb
+├── docs/
+│   └── final_written_summary.md
+├── run_pipeline.py
+├── run_server.py
+├── build_notebook.py
+├── requirements.txt
+└── README.md
 ```
 
 ---
 
-## 🚀 Quickstart Guide
+## 💻 Prerequisites
 
-### 1. Prerequisites & Installation
-Ensure you have Python 3.10+ installed. Install the required dependencies:
+Ensure the following software and hardware requirements are available before running the project:
+
+| Requirement | Version / Description |
+|---|---|
+| Python | 3.10 or higher |
+| pip | Python package installer |
+| Git | Required to clone the repository |
+| Web Browser | Google Chrome, Microsoft Edge, or any modern browser |
+| Microphone | Required for the live voice-matching feature |
+| Dataset | Google Speech Commands Dataset containing the 10 selected command folders |
+
+**Note:** A microphone is required only for the live voice-matching functionality. The remaining application features can be explored without microphone access.
+
+---
+
+## 📦 Dependencies
+
+The project uses the following Python libraries and technologies:
+
+| Dependency | Purpose |
+|---|---|
+| NumPy | Numerical computations |
+| Pandas | Dataset handling and manipulation |
+| Scikit-learn | Machine learning, clustering, PCA, and evaluation metrics |
+| Librosa | Acoustic feature extraction |
+| SoundFile | Audio file processing |
+| SciPy | Scientific and statistical computations |
+| FastAPI | Backend application development |
+| Uvicorn | Running the FastAPI server |
+| Matplotlib | Data visualization |
+| ReportLab | PDF report generation |
+| Jinja2 | HTML report templating |
+| Plotly.js | Interactive frontend visualizations |
+
+All Python dependencies are listed in the `requirements.txt` file.
+
+---
+
+## ⚙️ Installation
+
+Follow these steps to set up the project locally.
+
+### Step 1: Clone the Repository
+
+```bash
+git clone https://github.com/AnanyaNairr/Speech_Clustering.git
+```
+
+### Step 2: Navigate to the Project Directory
+
+```bash
+cd Speech_Clustering
+```
+
+### Step 3: Create a Virtual Environment
+
+```bash
+python -m venv venv
+```
+
+### Step 4: Activate the Virtual Environment
+
+**Windows:**
+
+```bash
+venv\Scripts\activate
+```
+
+**Linux / macOS:**
+
+```bash
+source venv/bin/activate
+```
+
+### Step 5: Install the Required Dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 2. Run the Web Application
-Launch the web interface locally on your laptop:
+### Step 6: Verify the Dataset
+
+Ensure that the `Dataset/` directory contains the following command folders:
+
+```text
+Dataset/
+├── yes/
+├── no/
+├── up/
+├── down/
+├── left/
+├── right/
+├── on/
+├── off/
+├── stop/
+└── go/
+```
+
+Each folder should contain the corresponding WAV recordings.
+
+---
+
+## 🚀 Execution Instructions
+
+The project supports three execution methods.
+
+### 1. Run the Interactive Web Application
+
+Start the FastAPI web server:
 
 ```bash
 python run_server.py
 ```
-Open your browser and navigate to: **`http://127.0.0.1:8000`**
 
-### 3. Run the Standalone Pipeline (CLI)
-To run the full extraction, preprocessing, clustering comparison, PCA, stability, and report generation in batch mode:
+Once the server starts successfully, open the following address in your browser:
+
+**http://127.0.0.1:8000**
+
+The application provides a guided five-step workflow:
+
+1. Data Loading
+2. Preprocessing
+3. Clustering Validation
+4. Acoustic Exploration
+5. Try It Yourself
+
+### 2. Run the Complete Machine Learning Pipeline (CLI)
+
+To execute the standalone machine learning pipeline without launching the web application:
 
 ```bash
 python run_pipeline.py
 ```
-*Options:*
-- `--samples 200` : Set number of balanced clips per word (default: 200).
-- `--seed 42` : Fixed random seed (default: 42).
-- `--force` : Re-extract features from scratch.
 
-### 4. Run the Jupyter Notebook
-To inspect the step-by-step reproducible analysis with equations, charts, and markdown:
+The pipeline performs:
+
+- Audio dataset loading.
+- Acoustic feature extraction.
+- Feature preprocessing and standardization.
+- K-Means and K-Medians clustering.
+- Clustering evaluation.
+- PCA-based dimensionality reduction.
+- Cluster stability analysis.
+- Confusable command pair identification.
+- Automated HTML and PDF report generation.
+
+**Available Command-Line Arguments:**
+
+| Argument | Description | Default |
+|---|---|---|
+| `--samples 200` | Number of balanced audio clips per command | 200 |
+| `--seed 42` | Random seed for reproducibility | 42 |
+| `--force` | Re-extract acoustic features from scratch | Disabled |
+
+**Examples:**
+
+Run with 200 samples per command:
+
+```bash
+python run_pipeline.py --samples 200
+```
+
+Run with a different random seed:
+
+```bash
+python run_pipeline.py --seed 50
+```
+
+Force complete feature re-extraction:
+
+```bash
+python run_pipeline.py --force
+```
+
+### 3. Run the Jupyter Notebook
+
+Launch the notebook:
 
 ```bash
 jupyter notebook notebooks/acoustic_feature_clustering.ipynb
 ```
 
+The notebook provides a step-by-step exploration of:
+
+- Dataset exploration.
+- Acoustic feature extraction.
+- Data preprocessing.
+- Clustering implementation.
+- Model evaluation.
+- PCA visualizations.
+- Interpretation of experimental findings.
+
+It also contains documented explanations, mathematical equations, charts, and pre-rendered outputs for reproducibility.
+
 ---
 
 ## 📊 Summary of Empirical Results
 
-### Clustering Validation Comparison ($N = 2,000$ clips)
+### Clustering Validation Comparison (`N=2,000` clips)
 
-| K | Distance / Algorithm | WCSS / Inertia | Silhouette Score | Davies-Bouldin Index |
-| :---: | :---: | :---: | :---: | :---: |
+| **K** | **Distance / Algorithm** | **WCSS / Inertia** | **Silhouette Score** | **Davies-Bouldin Index** |
+|---|---|---:|---:|---:|
 | **K = 2** | **Euclidean (K-Means) [Recommended]** | **82,500.8** | **0.0768** | **3.1309** |
 | K = 2 | Manhattan (K-Medians) | 65,643.6 | 0.0841 | 2.9878 |
 | K = 3 | Euclidean (K-Means) | 78,646.2 | 0.0653 | 3.3100 |
@@ -125,17 +272,11 @@ jupyter notebook notebooks/acoustic_feature_clustering.ipynb
 | K = 10 | Euclidean (K-Means) | 69,218.5 | 0.0383 | 3.2389 |
 
 ### Key Acoustic Findings
-1. **$K = 2$ Partitioning:** Speech commands separate primarily into **continuous resonant vowels** (`on`, `no`, `down`, `go`) vs **high-frequency sibilants/plosives** (`yes`, `right`, `stop`, `left`).
+
+1. **`K=2` Partitioning:** Speech commands separate primarily into **continuous resonant vowels** (`on`, `no`, `down`, `go`) vs **high-frequency sibilants/plosives** (`yes`, `right`, `stop`, `left`).
+
 2. **Safety-Critical Pairings:**
    - **`GO` vs `NO` (Confusability = 0.929):** High rhyme hazard (`/oʊ/`). Assistive systems should replace *"go"* with *"forward"* or *"drive"*.
    - **`STOP` vs `GO` (Distance = 2.45):** *"stop"* (Cluster 1) and *"go"* (Cluster 0) fall into opposite acoustic groups, providing strong phonetic separation in clean speech.
+
 3. **Stability:** 10 random initializations (seeds 42–51) produced an **Adjusted Rand Index (ARI) of 0.9720**, confirming high algorithmic stability.
-
----
-
-## ♿ Accessibility & Responsible Use
-
-1. **Volunteer Dataset Limitations:** The Google Speech Commands dataset consists predominantly of clear speech from healthy adult volunteers. Ambient noise, regional accents, and vocal fatigue significantly alter acoustic characteristics.
-2. **Under-representation of Dysarthric Speech:** People with motor disabilities (e.g., Cerebral Palsy, ALS, Stroke) frequently experience dysarthria, which alters formant frequencies, reduces breath support, and introduces vocal tremor. These baseline clusters **do not represent dysarthric speech patterns** and must be calibrated to individual end-users.
-3. **Fail-Safe Design:** Voice-controlled assistive devices should never execute irreversible actions based on a single voice trigger without secondary dwell-time confirmation or multi-modal fail-safes.
-
