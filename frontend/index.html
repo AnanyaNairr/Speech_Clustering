@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Acoustic Feature Clustering for Hands-Free Accessibility Control</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+  <!-- Local Offline Plotly.js -->
+  <script src="/static/js/plotly.min.js"></script>
+</head>
+<body>
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
+  <!-- Header -->
+  <header>
+    <div class="container nav-bar">
+      <div class="logo-group">
+        <div class="logo-icon" aria-hidden="true">🎙️</div>
+        <div class="logo-text">
+          <h1>AcousticClust Accessibility</h1>
+          <span>Hands-Free Speech Command Analysis</span>
+        </div>
+      </div>
+      <div class="nav-actions">
+        <button id="btn-open-glossary" class="btn btn-outline" style="font-size: 0.85rem; padding: 0.45rem 0.85rem;" aria-haspopup="dialog">
+          📖 Glossary & Guide
+        </button>
+        <button id="btn-theme-toggle" class="btn-icon" aria-label="Toggle dark mode" title="Toggle dark/light theme">
+          🌙
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <section class="hero" aria-label="Project Overview">
+    <div class="container">
+      <div class="hero-content">
+        <div class="hero-badge">
+          <span>♿</span> Hands-Free Accessibility Application
+        </div>
+        <h2>Acoustic Feature Clustering for Safe Voice Control</h2>
+        <p>
+          Individuals with motor disabilities rely on spoken commands like <strong>"yes"</strong>, <strong>"no"</strong>, <strong>"stop"</strong>, and <strong>"go"</strong>. 
+          When commands sound acoustically similar, voice systems confuse them—causing dangerous failures (such as executing "go" instead of "stop"). 
+          This tool groups spoken sounds by their acoustic features so designers can select commands that are easy for both computers and humans to tell apart.
+        </p>
+        <div class="hero-callout">
+          <strong>Design Principle:</strong> Choose voice commands that belong to different acoustic clusters to maximize separation and eliminate accidental triggers.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Main Content -->
+  <main id="main-content" class="container">
+
+    <!-- Guided 5-Step Stepper Progress Bar -->
+    <nav class="stepper-nav" aria-label="Analysis Workflow Steps">
+      <ol class="stepper-list">
+        <li class="step-item active" data-step="1">
+          <button class="step-btn" data-step="1" aria-current="step">
+            <span class="step-number">1</span>
+            <span class="step-title">Load Data</span>
+          </button>
+        </li>
+        <li class="step-item" data-step="2">
+          <button class="step-btn" data-step="2">
+            <span class="step-number">2</span>
+            <span class="step-title">Clean & Prepare</span>
+          </button>
+        </li>
+        <li class="step-item" data-step="3">
+          <button class="step-btn" data-step="3">
+            <span class="step-number">3</span>
+            <span class="step-title">Choose Groups (K)</span>
+          </button>
+        </li>
+        <li class="step-item" data-step="4">
+          <button class="step-btn" data-step="4">
+            <span class="step-number">4</span>
+            <span class="step-title">Explore Groups</span>
+          </button>
+        </li>
+        <li class="step-item" data-step="5">
+          <button class="step-btn" data-step="5">
+            <span class="step-number">5</span>
+            <span class="step-title">Report & Try It</span>
+          </button>
+        </li>
+      </ol>
+    </nav>
+
+    <!-- STEP 1: LOAD DATA -->
+    <section id="step-1" class="step-section active" aria-labelledby="step-1-heading">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h3 id="step-1-heading" class="card-title"><span>📂</span> Step 1: Speech Commands Dataset</h3>
+            <p class="card-desc">Google Speech Commands Dataset loaded locally from disk. Balanced sampling across 10 core accessibility words.</p>
+          </div>
+        </div>
+
+        <div id="step-1-content">
+          <!-- Populated by JavaScript -->
+          <div style="text-align: center; padding: 2rem;"><span class="spinner"></span> Loading dataset statistics...</div>
+        </div>
+
+        <div class="explainer-box">
+          <h4>💡 What are Audio Clips in this Project?</h4>
+          <p>
+            Each voice command is a 1-second <code>.wav</code> audio file sampled at 16,000 Hertz (16kHz mono). 
+            If a clip is shorter than 1 second, it is padded with silence; if longer, it is trimmed to exactly 1.0 second. 
+            This ensures uniform feature extraction across all commands.
+          </p>
+        </div>
+
+        <div class="step-footer">
+          <div></div>
+          <button class="btn btn-primary" data-nav="next">
+            Next: Clean & Prepare Data ➔
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- STEP 2: CLEAN & PREPARE -->
+    <section id="step-2" class="step-section" aria-labelledby="step-2-heading">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h3 id="step-2-heading" class="card-title"><span>🧹</span> Step 2: Data Cleaning & Variable Relevance</h3>
+            <p class="card-desc">Extracted 45 acoustic features with Librosa, inspected correlations, and standardized inputs.</p>
+          </div>
+        </div>
+
+        <div id="step-2-summary">
+          <!-- Populated by JavaScript -->
+        </div>
+
+        <div class="card" style="margin-top: 1.5rem; background: var(--bg-secondary);">
+          <div class="card-title" style="font-size: 1.1rem;">
+            <span>📊</span> Pairwise Acoustic Feature Correlation Heatmap
+            <span class="info-tooltip" data-tooltip="Shows Pearson correlation between acoustic features. Pairs with |r| > 0.95 are flagged and filtered to avoid multicollinearity.">?</span>
+          </div>
+          <p class="card-desc">Visual check of feature redundancy across spectral and temporal acoustic dimensions.</p>
+          <div id="chart-correlation-heatmap" style="width: 100%; height: 500px;"></div>
+        </div>
+
+        <div class="explainer-box">
+          <h4>💡 What are MFCCs and Spectral Features?</h4>
+          <p>
+            • <strong>MFCC (Mel-Frequency Cepstral Coefficients):</strong> Mathematical descriptors of the human vocal tract shape. Like a "fingerprint" of vowel resonances.<br>
+            • <strong>Spectral Centroid:</strong> The "center of mass" of sound frequencies. Higher values sound bright and sharp (like "s" or "t"); lower values sound warm and bassy (like "o" or "u").<br>
+            • <strong>Zero-Crossing Rate (ZCR):</strong> How rapidly the audio waveform crosses zero. High ZCR indicates noisy, hiss-like fricatives ("s", "f", "sh").<br>
+            • <strong>StandardScaler:</strong> Adjusts every feature to have a mean of 0 and standard deviation of 1 so high-magnitude frequencies don't overwhelm subtle timbre differences.
+          </p>
+        </div>
+
+        <div class="step-footer">
+          <button class="btn btn-secondary" data-nav="prev">
+            ⬅ Back to Step 1
+          </button>
+          <button class="btn btn-primary" data-nav="next">
+            Next: Choose Number of Groups ➔
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- STEP 3: CHOOSE NUMBER OF GROUPS -->
+    <section id="step-3" class="step-section" aria-labelledby="step-3-heading">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h3 id="step-3-heading" class="card-title"><span>⚙️</span> Step 3: Choose Number of Groups (K) & Distance</h3>
+            <p class="card-desc">Evaluating K = 2 to 10 using Euclidean (K-Means) and Manhattan (K-Medians) metrics.</p>
+          </div>
+        </div>
+
+        <!-- Automated Recommendation Banner -->
+        <div id="recommendation-banner" style="margin-bottom: 1.5rem;">
+          <!-- Populated by JavaScript -->
+        </div>
+
+        <!-- Side-by-Side Validation Charts -->
+        <div class="grid-3" style="margin-bottom: 1.5rem;">
+          <div class="card" style="padding: 1rem; margin: 0;">
+            <div id="chart-elbow" style="height: 280px;"></div>
+          </div>
+          <div class="card" style="padding: 1rem; margin: 0;">
+            <div id="chart-silhouette" style="height: 280px;"></div>
+          </div>
+          <div class="card" style="padding: 1rem; margin: 0;">
+            <div id="chart-davies-bouldin" style="height: 280px;"></div>
+          </div>
+        </div>
+
+        <!-- Metrics Explanation Callouts -->
+        <div class="grid-3" style="margin-bottom: 1.5rem;">
+          <div class="explainer-box" style="margin: 0;">
+            <h4>📉 Elbow Plot (WCSS)</h4>
+            <p>Measures within-group spread. We look for an "elbow bend" where adding more clusters yields diminishing returns.</p>
+          </div>
+          <div class="explainer-box" style="margin: 0;">
+            <h4>📈 Silhouette Score</h4>
+            <p>Ranges -1 to +1. Higher values mean clips fit snugly inside their cluster and remain far from other clusters.</p>
+          </div>
+          <div class="explainer-box" style="margin: 0;">
+            <h4>🎯 Davies-Bouldin Index</h4>
+            <p>Measures cluster similarity. <strong>Lower is better</strong>; values closer to 1 signify compact, well-separated clusters.</p>
+          </div>
+        </div>
+
+        <!-- Unified Metrics Comparison Table -->
+        <div class="card-title" style="font-size: 1.15rem; margin-top: 1.5rem;">
+          <span>📋</span> Unified Metrics Comparison Table (K = 2 to 10)
+        </div>
+        <p class="card-desc">Comprehensive side-by-side comparison of Euclidean (K-Means) and Manhattan (K-Medians) runs.</p>
+        <div class="table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Cluster Count (K)</th>
+                <th>Distance Metric / Algorithm</th>
+                <th>WCSS / Inertia</th>
+                <th>Silhouette Score</th>
+                <th>Davies-Bouldin Index</th>
+              </tr>
+            </thead>
+            <tbody id="metrics-table-body">
+              <!-- Populated by JavaScript -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Interactive Configuration Override Panel -->
+        <details class="collapsible" style="margin-top: 1.5rem;" open>
+          <summary>⚙️ Change Configuration (User Override)</summary>
+          <div class="panel-content">
+            <p style="font-size: 0.9rem; margin-bottom: 1rem;">
+              You can override the automated recommendation by selecting a different K value or distance metric below:
+            </p>
+            <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+              <div>
+                <label for="select-k" style="font-weight: 600; font-size: 0.9rem; display: block; margin-bottom: 0.3rem;">Number of Clusters (K):</label>
+                <select id="select-k" style="padding: 0.5rem 1rem; border-radius: 6px; border: 1px solid var(--border); background: var(--bg-card); color: var(--text-primary); font-size: 1rem;">
+                  <option value="2">K = 2</option>
+                  <option value="3">K = 3</option>
+                  <option value="4">K = 4</option>
+                  <option value="5">K = 5</option>
+                  <option value="6">K = 6</option>
+                  <option value="7">K = 7</option>
+                  <option value="8">K = 8</option>
+                  <option value="9">K = 9</option>
+                  <option value="10">K = 10</option>
+                </select>
+              </div>
+              <div>
+                <label for="select-distance" style="font-weight: 600; font-size: 0.9rem; display: block; margin-bottom: 0.3rem;">Distance Metric:</label>
+                <select id="select-distance" style="padding: 0.5rem 1rem; border-radius: 6px; border: 1px solid var(--border); background: var(--bg-card); color: var(--text-primary); font-size: 1rem;">
+                  <option value="Euclidean">Euclidean (L2 - K-Means)</option>
+                  <option value="Manhattan">Manhattan (L1 - K-Medians)</option>
+                </select>
+              </div>
+              <div style="align-self: flex-end;">
+                <button id="btn-apply-model" class="btn btn-primary" style="margin-top: 1rem;">
+                  Apply Configuration & Update Analysis
+                </button>
+              </div>
+            </div>
+          </div>
+        </details>
+
+        <div class="step-footer">
+          <button class="btn btn-secondary" data-nav="prev">
+            ⬅ Back to Step 2
+          </button>
+          <button class="btn btn-primary" data-nav="next">
+            Next: See and Understand Groups ➔
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- STEP 4: SEE AND UNDERSTAND GROUPS -->
+    <section id="step-4" class="step-section" aria-labelledby="step-4-heading">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h3 id="step-4-heading" class="card-title"><span>🔍</span> Step 4: Explore and Understand Acoustic Groups</h3>
+            <p class="card-desc">Interactive PCA projections, cluster sound profiles, word confusion risks, and algorithm stability.</p>
+          </div>
+        </div>
+
+        <!-- PCA 2D Scatter with Color Mode Toggle -->
+        <div class="card" style="background: var(--bg-secondary);">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.75rem;">
+            <div>
+              <h4 style="font-size: 1.15rem; font-weight: 700;">Principal Component Analysis (PCA) Map</h4>
+              <p style="font-size: 0.85rem; color: var(--text-muted);">Points that lie close together sound acoustically similar.</p>
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.6rem;">
+              <label for="pca-color-toggle" style="font-size: 0.9rem; font-weight: 600;">Color By:</label>
+              <select id="pca-color-toggle" style="padding: 0.4rem 0.8rem; border-radius: 6px; border: 1px solid var(--border); background: var(--bg-card); color: var(--text-primary);">
+                <option value="cluster">Acoustic Cluster</option>
+                <option value="word">Actual Spoken Word</option>
+              </select>
+            </div>
+          </div>
+
+          <div id="chart-pca-2d" style="width: 100%; height: 500px;"></div>
+        </div>
+
+        <!-- PCA 3D and Loadings Grid -->
+        <div class="grid-2" style="margin-bottom: 1.5rem;">
+          <div class="card" style="padding: 1rem; margin: 0;">
+            <div id="chart-pca-3d" style="height: 380px;"></div>
+          </div>
+          <div class="card" style="padding: 1rem; margin: 0;">
+            <div id="chart-loadings" style="height: 380px;"></div>
+          </div>
+        </div>
+
+        <!-- Cluster Sound Profiles -->
+        <div class="card-title" style="font-size: 1.25rem; margin: 2rem 0 1rem;">
+          <span>🎧</span> Cluster Acoustic Profiles & Dominant Commands
+        </div>
+        <p class="card-desc" style="margin-bottom: 1.25rem;">
+          Plain-English descriptions of how each acoustic group sounds, which command words belong to it, and its defining spectral features.
+        </p>
+        <div id="cluster-profiles-container">
+          <!-- Populated by JavaScript -->
+        </div>
+
+        <!-- Word vs Cluster Heatmap -->
+        <div class="card" style="margin-top: 1.5rem; background: var(--bg-secondary);">
+          <div class="card-title" style="font-size: 1.15rem;">
+            <span>🗺️</span> Command Word by Cluster Heatmap
+          </div>
+          <p class="card-desc">Shows what percentage of each spoken command's recordings fell into each cluster.</p>
+          <div id="chart-word-cluster-heatmap" style="width: 100%; height: 420px;"></div>
+        </div>
+
+        <!-- Confusable Pairs Table -->
+        <div class="card-title" style="font-size: 1.25rem; margin: 2rem 0 1rem;">
+          <span>⚠️</span> Top Confusable Command Pairs (Accessibility Safety Hazard)
+        </div>
+        <p class="card-desc">
+          Commands that share acoustic clusters or feature centroids risk being confused by voice-recognition engines.
+          Click <strong>"🔊 Compare Pair"</strong> to hear both words played back-to-back with authentic volunteer clips!
+        </p>
+        <div id="pair-compare-live-status" style="display: none; margin-bottom: 1rem;"></div>
+        <div class="table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Command Pair</th>
+                <th>Listen & Compare</th>
+                <th>Confusability Index</th>
+                <th>Cluster Overlap</th>
+                <th>Acoustic Distance</th>
+                <th>Hazard Analysis</th>
+              </tr>
+            </thead>
+            <tbody id="confusable-pairs-body">
+              <!-- Populated by JavaScript -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Stability Assessment -->
+        <div class="card" style="margin-top: 1.5rem;">
+          <div class="card-title" style="font-size: 1.15rem;">
+            <span>🔬</span> Algorithm Stability Assessment (10 Random Restarts)
+          </div>
+          <p class="card-desc">Evaluates whether the clusters are robust or random artifacts using Adjusted Rand Index (ARI).</p>
+          <div class="grid-3" id="stability-summary" style="margin-top: 1rem;">
+            <!-- Populated by JavaScript -->
+          </div>
+        </div>
+
+        <div class="step-footer">
+          <button class="btn btn-secondary" data-nav="prev">
+            ⬅ Back to Step 3
+          </button>
+          <button class="btn btn-primary" data-nav="next">
+            Next: Report & Responsible Use ➔
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- STEP 5: REPORT & RESPONSIBLE USE -->
+    <section id="step-5" class="step-section" aria-labelledby="step-5-heading">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h3 id="step-5-heading" class="card-title"><span>📄</span> Step 5: Try It Yourself & Responsible Use Report</h3>
+            <p class="card-desc">Test your own voice clip in real time, download reproducible outputs, and review accessibility guidelines.</p>
+          </div>
+        </div>
+
+        <!-- TRY IT YOURSELF MODULE -->
+        <div class="card" style="background: var(--bg-secondary); border-color: var(--primary-border);">
+          <div class="card-title" style="font-size: 1.25rem;">
+            <span>🎙️</span> Try It Yourself: Voice Command Matcher
+          </div>
+          <p class="card-desc">
+            Speak into your microphone or upload a 1-second <code>.wav</code> clip. 
+            The system extracts identical acoustic features, plots your sound on the PCA map, and identifies which cluster and commands it resembles!
+          </p>
+
+          <div id="recorder-box" class="recorder-box">
+            <div style="font-size: 2.5rem; margin-bottom: 0.5rem;" aria-hidden="true">🎤</div>
+            <h4 style="font-size: 1.2rem; margin-bottom: 0.35rem;">Record a 1-Second Voice Command</h4>
+            <p id="record-status" style="font-size: 0.95rem; color: var(--text-muted); margin-bottom: 1rem;">
+              Click "Record" and speak clearly (e.g. say "STOP", "GO", "YES", or "NO")
+            </p>
+
+            <div id="mic-live-vu" style="display: none; justify-content: center; align-items: flex-end; gap: 5px; height: 36px; margin: 0.75rem auto 1rem; width: 160px;" aria-hidden="true">
+              <span class="vu-bar" style="width: 6px; height: 8px; background: var(--primary); border-radius: 3px; transition: height 0.05s ease;"></span>
+              <span class="vu-bar" style="width: 6px; height: 12px; background: var(--primary); border-radius: 3px; transition: height 0.05s ease;"></span>
+              <span class="vu-bar" style="width: 6px; height: 18px; background: var(--accent); border-radius: 3px; transition: height 0.05s ease;"></span>
+              <span class="vu-bar" style="width: 6px; height: 26px; background: var(--accent); border-radius: 3px; transition: height 0.05s ease;"></span>
+              <span class="vu-bar" style="width: 6px; height: 34px; background: var(--danger); border-radius: 3px; transition: height 0.05s ease;"></span>
+              <span class="vu-bar" style="width: 6px; height: 26px; background: var(--accent); border-radius: 3px; transition: height 0.05s ease;"></span>
+              <span class="vu-bar" style="width: 6px; height: 18px; background: var(--accent); border-radius: 3px; transition: height 0.05s ease;"></span>
+              <span class="vu-bar" style="width: 6px; height: 12px; background: var(--primary); border-radius: 3px; transition: height 0.05s ease;"></span>
+              <span class="vu-bar" style="width: 6px; height: 8px; background: var(--primary); border-radius: 3px; transition: height 0.05s ease;"></span>
+            </div>
+
+            <div class="recorder-controls">
+              <button id="btn-record" class="btn btn-primary" style="font-size: 1.05rem; padding: 0.75rem 1.75rem;">
+                🎤 Record Voice Clip
+              </button>
+            </div>
+
+            <audio id="audio-preview" controls style="display: none; margin: 1.25rem auto 0;"></audio>
+
+            <div style="margin: 1.5rem auto 0; max-width: 380px; border-top: 1px solid var(--border-subtle); padding-top: 1rem;">
+              <span style="font-size: 0.85rem; color: var(--text-muted);">— OR UPLOAD AUDIO FILE —</span>
+              <div id="audio-drop-zone" style="margin-top: 0.75rem; padding: 1rem; border: 2px dashed var(--border); border-radius: 6px; cursor: pointer;">
+                <input type="file" id="audio-file-input" accept="audio/wav,audio/*" style="display: none;">
+                <label for="audio-file-input" style="cursor: pointer; font-size: 0.9rem; color: var(--primary); font-weight: 600;">
+                  📁 Click to browse or drop a .wav file here
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <!-- Live Results Container -->
+          <div id="try-it-results" style="display: none;"></div>
+        </div>
+
+        <!-- DOWNLOAD CENTER -->
+        <div class="card" style="margin-top: 2rem;">
+          <div class="card-title" style="font-size: 1.2rem;">
+            <span>📥</span> Download Center & Reproducibility Artifacts
+          </div>
+          <p class="card-desc">Download complete data files, metrics tables, and formal evaluation reports for grading and research submission.</p>
+
+          <div class="grid-2" style="margin-top: 1.25rem;">
+            <div class="card" style="margin: 0; background: var(--bg-secondary);">
+              <h4 style="margin-bottom: 0.5rem;">📊 Data & Metrics Downloads</h4>
+              <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">Raw and cleaned feature tables with extracted acoustic parameters.</p>
+              <div class="btn-group" style="flex-wrap: wrap;">
+                <a href="/api/download/features_csv" class="btn btn-secondary" download>
+                  📄 Features CSV (45 feats)
+                </a>
+                <a href="/api/download/clean_csv" class="btn btn-secondary" download>
+                  📄 Clean Features CSV
+                </a>
+                <a href="/api/download/metrics_csv" class="btn btn-secondary" download>
+                  📈 Metrics Table CSV
+                </a>
+              </div>
+            </div>
+
+            <div class="card" style="margin: 0; background: var(--bg-secondary);">
+              <h4 style="margin-bottom: 0.5rem;">📑 Full Analysis Reports</h4>
+              <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">Comprehensive publication-ready reports with tables and visualizations.</p>
+              <div class="btn-group" style="flex-wrap: wrap;">
+                <a href="/api/download/report_html" target="_blank" class="btn btn-primary">
+                  🌐 Standalone HTML Report
+                </a>
+                <a href="/api/download/report_pdf" class="btn btn-success" download>
+                  📄 Download PDF Report
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- LIMITATIONS & RESPONSIBLE USE SECTION -->
+        <div class="card" style="margin-top: 2rem; border-color: var(--warning);">
+          <div class="card-header" style="border-bottom-color: var(--warning-light);">
+            <div class="card-title" style="color: var(--warning);">
+              <span>🛡️</span> Limitations, Demographics & Responsible Accessibility Use
+            </div>
+          </div>
+          <div style="font-size: 0.95rem; line-height: 1.7;">
+            <p><strong>1. Volunteer Demographics & Healthy Speech Bias:</strong></p>
+            <p style="color: var(--text-secondary); margin-bottom: 1rem;">
+              The Google Speech Commands dataset was contributed by volunteer English speakers in controlled acoustic environments. 
+              Variations in regional accents, age (children and elderly speakers), vocal fatigue, and background ambient noise vary significantly in real homes and assistive environments.
+            </p>
+
+            <p><strong>2. Under-representation of Dysarthric & Impaired Speech:</strong></p>
+            <p style="color: var(--text-secondary); margin-bottom: 1rem;">
+              Crucially, individuals who experience severe motor disabilities (e.g. Cerebral Palsy, ALS, Stroke survivors) frequently present with <strong>dysarthria</strong>, vocal tremor, reduced breath support, or non-standard articulation. 
+              The target population who most urgently requires hands-free accessibility control is fundamentally under-represented in standard volunteer datasets. 
+              These acoustic clusters reflect healthy acoustic baselines and <em>must not</em> be assumed to match dysarthric speech patterns without personalized acoustic calibration.
+            </p>
+
+            <p><strong>3. Exploratory Nature of Unsupervised Clusters:</strong></p>
+            <p style="color: var(--text-secondary);">
+              Unsupervised clustering identifies geometric proximities in mathematical feature space. 
+              They are exploratory diagnostic tools—not immutable natural categories. 
+              Assistive system designers must never ship a voice interface without rigorous user-in-the-loop validation, safety confirmation prompts for destructive actions, and customizable fallback inputs.
+            </p>
+          </div>
+        </div>
+
+        <div class="step-footer">
+          <button class="btn btn-secondary" data-nav="prev">
+            ⬅ Back to Step 4
+          </button>
+          <div>
+            <span class="badge badge-success" style="font-size: 0.9rem; padding: 0.5rem 1rem;">
+              ✓ Pipeline Complete
+            </span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Accessible Modal: Glossary & How It Works -->
+  <dialog id="glossary-modal" style="margin: auto; max-width: 720px; width: 90%; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-card); color: var(--text-primary); padding: 2rem; box-shadow: var(--shadow-lg);">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-subtle); padding-bottom: 0.75rem;">
+      <h3 style="font-size: 1.3rem; font-weight: 700;">📖 Glossary & How This Works</h3>
+      <button id="btn-close-glossary" class="btn-icon" aria-label="Close dialog" style="font-size: 1.25rem;">✕</button>
+    </div>
+
+    <div style="max-height: 60vh; overflow-y: auto; padding-right: 0.5rem; line-height: 1.6; font-size: 0.95rem;">
+      <h4 style="color: var(--primary); margin-bottom: 0.25rem;">Simple Analogy: Acoustic Fingerprints</h4>
+      <p style="color: var(--text-secondary); margin-bottom: 1.25rem;">
+        Imagine every word you speak has a unique shape and color. 
+        A word like "stop" starts with a hiss and ends with an abrupt click (sharp and pointed), whereas "go" is smooth, deep and rounded. 
+        Our algorithms measure these acoustic dimensions so we can group similar-sounding words together automatically.
+      </p>
+
+      <h4 style="color: var(--primary); margin-bottom: 0.25rem;">Key Technical Terms Explained Simply</h4>
+      <ul style="list-style: none; padding: 0;">
+        <li style="margin-bottom: 0.85rem;">
+          <strong>MFCC (Mel-Frequency Cepstral Coefficients):</strong> 
+          A compact 13-number summary of how sound energy is distributed across pitch bands, tuned to how the human ear perceives sound.
+        </li>
+        <li style="margin-bottom: 0.85rem;">
+          <strong>Spectral Centroid:</strong> 
+          The "center of gravity" of audio frequencies. Higher values sound bright, sharp or hiss-like; lower values sound deep and muffled.
+        </li>
+        <li style="margin-bottom: 0.85rem;">
+          <strong>Zero-Crossing Rate (ZCR):</strong> 
+          How many times per second the audio wave crosses zero. High ZCR detects whispery or fricative sounds like "s", "f", and "sh".
+        </li>
+        <li style="margin-bottom: 0.85rem;">
+          <strong>K-Means vs K-Medians:</strong> 
+          K-Means uses Euclidean (straight-line) distance and updates centers via averages. 
+          K-Medians uses Manhattan (grid-like cityblock) distance and updates centers via medians, making it more resistant to outlier background noises.
+        </li>
+        <li style="margin-bottom: 0.85rem;">
+          <strong>Silhouette Score:</strong> 
+          A grade from -1 to +1 showing whether each clip belongs more to its assigned group than to neighboring groups.
+        </li>
+        <li style="margin-bottom: 0.85rem;">
+          <strong>Davies-Bouldin Index:</strong> 
+          A ratio of how wide clusters are compared to how far apart they are. Lower scores mean better-separated clusters.
+        </li>
+        <li style="margin-bottom: 0.85rem;">
+          <strong>PCA (Principal Component Analysis):</strong> 
+          Compresses 45 acoustic measurements down into 2 or 3 master coordinates (PC1 and PC2) so we can visualize complex sound patterns on a flat screen.
+        </li>
+        <li style="margin-bottom: 0.85rem;">
+          <strong>Adjusted Rand Index (ARI):</strong> 
+          Measures whether restarting the clustering algorithm with different random starting points discovers the same clusters. An ARI near 1.0 indicates high stability.
+        </li>
+      </ul>
+    </div>
+
+    <div style="text-align: right; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border-subtle);">
+      <button id="btn-dismiss-glossary" class="btn btn-secondary">Close Guide</button>
+    </div>
+  </dialog>
+
+  <!-- Modal Script -->
+  <script>
+    const modal = document.getElementById('glossary-modal');
+    const openBtn = document.getElementById('btn-open-glossary');
+    const closeBtn = document.getElementById('btn-close-glossary');
+    const dismissBtn = document.getElementById('btn-dismiss-glossary');
+
+    if (openBtn && modal) {
+      openBtn.addEventListener('click', () => modal.showModal());
+      closeBtn.addEventListener('click', () => modal.close());
+      dismissBtn.addEventListener('click', () => modal.close());
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) modal.close();
+      });
+    }
+  </script>
+
+  <!-- Application Scripts -->
+  <script src="/static/js/charts.js"></script>
+  <script src="/static/js/audio_visualizer.js"></script>
+  <script src="/static/js/audio_recorder.js"></script>
+  <script src="/static/js/app.js"></script>
+</body>
+</html>
+

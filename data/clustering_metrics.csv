@@ -1,0 +1,19 @@
+k,distance,wcss,silhouette,davies_bouldin
+2,Euclidean (K-Means),82500.82,0.0768,3.1309
+2,Manhattan (K-Medians),65643.65,0.0841,2.9878
+3,Euclidean (K-Means),78646.24,0.0653,3.31
+3,Manhattan (K-Medians),63770.32,0.0746,4.2212
+4,Euclidean (K-Means),76391.49,0.0477,3.3128
+4,Manhattan (K-Medians),62720.1,0.056,3.7986
+5,Euclidean (K-Means),74710.3,0.0421,3.3505
+5,Manhattan (K-Medians),61803.81,0.0467,3.6372
+6,Euclidean (K-Means),73256.89,0.0368,3.278
+6,Manhattan (K-Medians),61098.77,0.0377,3.4974
+7,Euclidean (K-Means),71993.44,0.0343,3.2222
+7,Manhattan (K-Medians),60587.81,0.0366,3.3046
+8,Euclidean (K-Means),70972.51,0.0345,3.2078
+8,Manhattan (K-Medians),60107.64,0.0354,3.3514
+9,Euclidean (K-Means),69981.9,0.0368,3.1608
+9,Manhattan (K-Medians),59656.5,0.0306,3.6032
+10,Euclidean (K-Means),69218.51,0.0383,3.2389
+10,Manhattan (K-Medians),59339.4,0.026,3.5535
