@@ -7,11 +7,11 @@ An end-to-end machine learning system and interactive web application designed t
 ## 🌟 Key Features
 
 1. **Guided 5-Step Workflow:**
-   - **Step 1: Load Data:** Balanced sampling from Google Speech Commands (10 core words, 2,000 clips, 1.0s @ 16kHz mono).
+   - **Step 1: Load Data:** Balanced sampling from Google Speech Commands (10 core words, 2,000 clips, 1.0s @ 16kHz mono). Features an **Interactive Command Soundboard** to listen to authentic recordings of all 10 words, cycle through different volunteer speakers, and watch a **live Web Audio API oscilloscope & frequency spectrum visualizer**.
    - **Step 2: Clean & Prepare:** Extraction of 45 acoustic features via `librosa`, variable relevance review, correlation heatmap, and strict label isolation.
    - **Step 3: Choose Groups (K):** Side-by-side comparison of Euclidean ($L_2$ K-Means) and Manhattan ($L_1$ K-Medians) for $K = 2 \dots 10$ across WCSS, Silhouette Score, and Davies-Bouldin Index with automated defensible recommendations and user override.
-   - **Step 4: Explore Groups:** Interactive 2D/3D PCA projections, cluster acoustic sound profiles, word-by-cluster heatmap, safety hazard matrix, and 10-seed stability assessment (ARI).
-   - **Step 5: Report & Try It:** Live in-browser microphone voice recorder / WAV uploader, download center (CSV, HTML, PDF reports), and responsible accessibility guidelines.
+   - **Step 4: Explore Groups:** Interactive 2D/3D PCA projections, cluster acoustic sound profiles with audio previews, word-by-cluster heatmap, safety hazard matrix with **sequential back-to-back audio comparison for confusable pairs**, and 10-seed stability assessment (ARI).
+   - **Step 5: Report & Try It:** Live in-browser microphone voice recorder with real-time VU meter, WAV uploader, nearest-exemplar cluster matching, download center (CSV, HTML, PDF reports), and responsible accessibility guidelines.
 2. **Accessible Design:**
    - WCAG AA compliant contrast ratio (> 4.5:1).
    - Accessible keyboard navigation, visible focus indicators, and ARIA attributes.
