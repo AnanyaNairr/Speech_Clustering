@@ -1,24 +1,32 @@
 # GitHub Linguist Language Configuration
-# Ensures Python is detected as the primary language and excludes vendored libraries & notebooks
+# Ensures Python is detected as the primary/dominant language (99-100%) on GitHub
 
-# Exclude third-party vendored JavaScript libraries (Plotly.js is ~3.6MB)
-frontend/js/plotly.min.js linguist-vendored=true
+# Exclude all frontend UI assets (HTML, CSS, JavaScript) from GitHub language statistics
+# The files remain 100% active, fully functional, and served by the application,
+# but Linguist will not count them against Python in the repository language bar.
+frontend/** linguist-vendored=true
+frontend/js/** linguist-vendored=true
+frontend/css/** linguist-vendored=true
+frontend/index.html linguist-documentation=true
 *.min.js linguist-vendored=true
+*.js linguist-detectable=false
+*.html linguist-detectable=false
+*.css linguist-detectable=false
 
 # Exclude any Jupyter Notebooks from language statistics completely
 *.ipynb linguist-detectable=false
 *.ipynb linguist-documentation=true
 
-# Treat precomputed datasets, documents, and output reports as documentation/vendored
+# Mark datasets, caches, documents, and output reports as documentation/vendored
 data/** linguist-documentation=true
 outputs/** linguist-documentation=true
 docs/** linguist-documentation=true
 *.csv linguist-documentation=true
 *.joblib linguist-vendored=true
 *.pdf linguist-documentation=true
-*.html linguist-documentation=true
+*.json linguist-documentation=true
 
-# Explicitly mark Python files as code
+# Explicitly prioritize all Python code as the primary language
 *.py linguist-detectable=true
 backend/*.py linguist-detectable=true
 run_analysis.py linguist-detectable=true
