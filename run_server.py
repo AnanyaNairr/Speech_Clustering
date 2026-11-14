@@ -17,5 +17,6 @@ if __name__ == "__main__":
     print(f"  Starting web application on: http://127.0.0.1:{port}")
     print("  Press Ctrl+C to stop the server.")
     print("=" * 70)
-    uvicorn.run("backend.app:app", host="127.0.0.1", port=port, reload=True, log_level="info")
+    reload_mode = os.environ.get("RELOAD", "false").lower() in ("1", "true", "yes")
+    uvicorn.run("backend.app:app", host="127.0.0.1", port=port, reload=reload_mode, log_level="info")
 

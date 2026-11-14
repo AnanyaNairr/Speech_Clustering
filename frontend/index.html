@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Acoustic Feature Clustering for Hands-Free Accessibility Control</title>
-  <link rel="stylesheet" href="/static/css/style.css?v=2.2">
+  <link rel="stylesheet" href="/static/css/style.css">
   <!-- Local Offline Plotly.js -->
   <script src="/static/js/plotly.min.js"></script>
 </head>
@@ -102,415 +102,8 @@
         </div>
 
         <div id="step-1-content">
-          <div class="grid-4" style="margin-bottom: 1.5rem;">
-            <div class="stat-tile">
-              <div class="stat-label">Core Commands</div>
-              <div class="stat-value" style="color: var(--primary);">10 Words</div>
-              <div class="stat-sub">Balanced vocabulary</div>
-            </div>
-            <div class="stat-tile">
-              <div class="stat-label">Total Audio Clips</div>
-              <div class="stat-value" id="stat-total-clips">2,000</div>
-              <div class="stat-sub">200 clips sampled per command</div>
-            </div>
-            <div class="stat-tile">
-              <div class="stat-label">Sampling Rate</div>
-              <div class="stat-value">16,000 Hz</div>
-              <div class="stat-sub">16-bit Mono PCM WAV</div>
-            </div>
-            <div class="stat-tile">
-              <div class="stat-label">Audio Alignment</div>
-              <div class="stat-value" style="color: var(--success);">Clean 1.00s</div>
-              <div class="stat-sub">Energy-aligned & zero-padded</div>
-            </div>
-          </div>
-
-          <!-- Acoustic Command Studio & Live Oscilloscope Banner -->
-          <div class="card audio-studio-panel" id="audio-studio-banner" style="margin-bottom: 1.75rem; background: var(--bg-card); border: 1px solid var(--border); box-shadow: var(--shadow-lg);">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.85rem; flex-wrap: wrap; gap: 0.75rem;">
-              <div>
-                <h4 style="font-size: 1.25rem; font-weight: 700; display: flex; align-items: center; gap: 0.6rem;">
-                  <span class="live-dot" aria-hidden="true"></span>
-                  <span>Acoustic Command Studio & Live Oscilloscope</span>
-                </h4>
-                <p style="font-size: 0.88rem; color: var(--text-muted); margin-top: 0.15rem;">
-                  Click any command word below to hear the audio recording and watch its acoustic frequencies and waveform in real time.
-                </p>
-              </div>
-              <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-                <span style="font-size: 0.82rem; color: var(--text-secondary); font-weight: 600;">Speed:</span>
-                <button class="btn btn-sm btn-secondary speed-btn active" data-speed="1.0" onclick="window.audioStudio.setPlaybackSpeed(1.0)">1.0x</button>
-                <button class="btn btn-sm btn-secondary speed-btn" data-speed="0.75" onclick="window.audioStudio.setPlaybackSpeed(0.75)" title="Listen at 0.75x speed to hear subtle phonetics">0.75x Slow</button>
-                <button class="btn btn-sm btn-secondary speed-btn" data-speed="0.5" onclick="window.audioStudio.setPlaybackSpeed(0.5)" title="Listen at 0.5x half speed">0.5x</button>
-              </div>
-            </div>
-
-            <!-- Real-time Oscilloscope & Frequency Spectrum Canvas -->
-            <div style="position: relative; width: 100%; height: 120px; border-radius: var(--radius); overflow: hidden; background: var(--bg-secondary); border: 1px solid var(--border-subtle); margin-bottom: 0.75rem;">
-              <canvas id="studio-audio-canvas" style="width: 100%; height: 100%; display: block;"></canvas>
-              <div id="studio-canvas-overlay" style="position: absolute; top: 10px; left: 16px; pointer-events: none; display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap;">
-                <span id="studio-banner-word" style="font-size: 1.35rem; font-weight: 800; color: var(--text-primary); letter-spacing: 0.05em;">STOP</span>
-                <span id="studio-banner-ipa" class="badge badge-primary" style="font-family: monospace; font-size: 0.9rem;">/stɒp/</span>
-                <span id="studio-banner-speaker" class="badge badge-secondary" style="font-size: 0.8rem;">Speaker #1</span>
-                <span id="studio-banner-category" class="badge badge-warning" style="font-size: 0.8rem;">Sibilant + Plosive</span>
-              </div>
-              <div id="studio-banner-traits" style="position: absolute; bottom: 8px; left: 16px; right: 16px; pointer-events: none; font-size: 0.84rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                High-frequency hiss /s/ (>3500 Hz), silent stop gap, sharp plosive release burst.
-              </div>
-            </div>
-
-            <!-- Quick Action Interactive Buttons -->
-            <div style="display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: center; justify-content: flex-start; margin-top: 0.25rem;">
-              <button class="btn btn-sm btn-primary" onclick="window.audioStudio.playTour()" title="Play all 10 words one after another in a guided tour">
-                ▶ Tour All 10 Words
-              </button>
-              <button class="btn btn-sm btn-outline" onclick="window.audioStudio.playPairBackToBack('go', 'no')" title="Listen to GO then NO to hear rhyme confusion">
-                ⚠️ Compare GO vs NO (Rhyme Hazard)
-              </button>
-              <button class="btn btn-sm btn-outline" onclick="window.audioStudio.playPairBackToBack('stop', 'go')" title="Compare opposite control commands STOP vs GO">
-                ⚡ Compare STOP vs GO
-              </button>
-              <button class="btn btn-sm btn-secondary" onclick="window.audioStudio.playRandom()" title="Pick a random word and speaker">
-                🎲 Random Voice
-              </button>
-            </div>
-          </div>
-
-          <!-- 10 Interactive Command Cards Soundboard -->
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
-            <div>
-              <h4 style="font-size: 1.2rem; font-weight: 700;">🔊 Interactive Command Soundboard (Click Any Card to Hear Sound)</h4>
-              <p style="font-size: 0.85rem; color: var(--text-muted);">
-                Click anywhere on a card to hear its sound. Use <strong>"Next Voice"</strong> to sample different volunteer speakers.
-              </p>
-            </div>
-          </div>
-
-          <div class="audio-cards-grid" id="audio-cards-container">
-            <!-- 1. YES -->
-            <div class="audio-command-card" data-word="yes" id="card-yes" onclick="window.audioStudio.handleCardClick(event, 'yes')">
-              <div>
-                <div class="card-top-row">
-                  <div class="card-word-title">
-                    <span>YES</span>
-                    <span class="card-ipa-tag">/jɛs/</span>
-                  </div>
-                  <div class="mini-equalizer" title="Equalizer activity"><span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span></div>
-                </div>
-                <div style="margin-bottom: 0.6rem;"><span class="badge badge-secondary" style="font-size: 0.78rem;">Palatal Glide + Fricative /s/</span></div>
-                <p style="font-size: 0.82rem; color: var(--text-secondary); line-height: 1.45; margin-bottom: 0.85rem; min-height: 2.6rem;">
-                  High-frequency sibilant hiss (>3500 Hz), elevated zero-crossing rate, bright spectral centroid.
-                </p>
-              </div>
-              <div>
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.65rem; font-size: 0.8rem; color: var(--text-muted);">
-                  <span id="speaker-badge-yes">Speaker #1 of 4044</span>
-                  <span style="font-weight: 600; color: var(--primary);">16kHz WAV</span>
-                </div>
-                <div style="display: flex; gap: 0.5rem;">
-                  <button class="btn-card-play" onclick="event.stopPropagation(); window.audioStudio.playWord('yes')" aria-label="Play sound for YES">
-                    <span class="play-icon" aria-hidden="true">▶</span>
-                    <span>Hear Sound</span>
-                  </button>
-                  <button class="btn-card-cycle" onclick="event.stopPropagation(); window.audioStudio.cycleSpeaker('yes')" title="Hear a different volunteer voice for YES">
-                    <span>🎲 Next Voice</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <!-- 2. NO -->
-            <div class="audio-command-card" data-word="no" id="card-no" onclick="window.audioStudio.handleCardClick(event, 'no')">
-              <div>
-                <div class="card-top-row">
-                  <div class="card-word-title">
-                    <span>NO</span>
-                    <span class="card-ipa-tag">/noʊ/</span>
-                  </div>
-                  <div class="mini-equalizer" title="Equalizer activity"><span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span></div>
-                </div>
-                <div style="margin-bottom: 0.6rem;"><span class="badge badge-secondary" style="font-size: 0.78rem;">Nasal Consonant + Back Diphthong</span></div>
-                <p style="font-size: 0.82rem; color: var(--text-secondary); line-height: 1.45; margin-bottom: 0.85rem; min-height: 2.6rem;">
-                  Low spectral centroid (~1150 Hz), rich low-frequency formant resonance, low zero-crossing rate.
-                </p>
-              </div>
-              <div>
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.65rem; font-size: 0.8rem; color: var(--text-muted);">
-                  <span id="speaker-badge-no">Speaker #1 of 3941</span>
-                  <span style="font-weight: 600; color: var(--primary);">16kHz WAV</span>
-                </div>
-                <div style="display: flex; gap: 0.5rem;">
-                  <button class="btn-card-play" onclick="event.stopPropagation(); window.audioStudio.playWord('no')" aria-label="Play sound for NO">
-                    <span class="play-icon" aria-hidden="true">▶</span>
-                    <span>Hear Sound</span>
-                  </button>
-                  <button class="btn-card-cycle" onclick="event.stopPropagation(); window.audioStudio.cycleSpeaker('no')" title="Hear a different volunteer voice for NO">
-                    <span>🎲 Next Voice</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <!-- 3. UP -->
-            <div class="audio-command-card" data-word="up" id="card-up" onclick="window.audioStudio.handleCardClick(event, 'up')">
-              <div>
-                <div class="card-top-row">
-                  <div class="card-word-title">
-                    <span>UP</span>
-                    <span class="card-ipa-tag">/ʌp/</span>
-                  </div>
-                  <div class="mini-equalizer" title="Equalizer activity"><span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span></div>
-                </div>
-                <div style="margin-bottom: 0.6rem;"><span class="badge badge-secondary" style="font-size: 0.78rem;">Central Vowel + Bilabial Plosive</span></div>
-                <p style="font-size: 0.82rem; color: var(--text-secondary); line-height: 1.45; margin-bottom: 0.85rem; min-height: 2.6rem;">
-                  Transient unvoiced lip-closure release, mid-range spectral energy concentration.
-                </p>
-              </div>
-              <div>
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.65rem; font-size: 0.8rem; color: var(--text-muted);">
-                  <span id="speaker-badge-up">Speaker #1 of 3723</span>
-                  <span style="font-weight: 600; color: var(--primary);">16kHz WAV</span>
-                </div>
-                <div style="display: flex; gap: 0.5rem;">
-                  <button class="btn-card-play" onclick="event.stopPropagation(); window.audioStudio.playWord('up')" aria-label="Play sound for UP">
-                    <span class="play-icon" aria-hidden="true">▶</span>
-                    <span>Hear Sound</span>
-                  </button>
-                  <button class="btn-card-cycle" onclick="event.stopPropagation(); window.audioStudio.cycleSpeaker('up')" title="Hear a different volunteer voice for UP">
-                    <span>🎲 Next Voice</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <!-- 4. DOWN -->
-            <div class="audio-command-card" data-word="down" id="card-down" onclick="window.audioStudio.handleCardClick(event, 'down')">
-              <div>
-                <div class="card-top-row">
-                  <div class="card-word-title">
-                    <span>DOWN</span>
-                    <span class="card-ipa-tag">/daʊn/</span>
-                  </div>
-                  <div class="mini-equalizer" title="Equalizer activity"><span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span></div>
-                </div>
-                <div style="margin-bottom: 0.6rem;"><span class="badge badge-secondary" style="font-size: 0.78rem;">Stop /d/ + Diphthong + Nasal</span></div>
-                <p style="font-size: 0.82rem; color: var(--text-secondary); line-height: 1.45; margin-bottom: 0.85rem; min-height: 2.6rem;">
-                  Pronounced low-frequency diphthong glide ending in nasal resonance, broad spectral bandwidth.
-                </p>
-              </div>
-              <div>
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.65rem; font-size: 0.8rem; color: var(--text-muted);">
-                  <span id="speaker-badge-down">Speaker #1 of 3917</span>
-                  <span style="font-weight: 600; color: var(--primary);">16kHz WAV</span>
-                </div>
-                <div style="display: flex; gap: 0.5rem;">
-                  <button class="btn-card-play" onclick="event.stopPropagation(); window.audioStudio.playWord('down')" aria-label="Play sound for DOWN">
-                    <span class="play-icon" aria-hidden="true">▶</span>
-                    <span>Hear Sound</span>
-                  </button>
-                  <button class="btn-card-cycle" onclick="event.stopPropagation(); window.audioStudio.cycleSpeaker('down')" title="Hear a different volunteer voice for DOWN">
-                    <span>🎲 Next Voice</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <!-- 5. LEFT -->
-            <div class="audio-command-card" data-word="left" id="card-left" onclick="window.audioStudio.handleCardClick(event, 'left')">
-              <div>
-                <div class="card-top-row">
-                  <div class="card-word-title">
-                    <span>LEFT</span>
-                    <span class="card-ipa-tag">/lɛft/</span>
-                  </div>
-                  <div class="mini-equalizer" title="Equalizer activity"><span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span></div>
-                </div>
-                <div style="margin-bottom: 0.6rem;"><span class="badge badge-secondary" style="font-size: 0.78rem;">Liquid /l/ + Front Vowel + Cluster</span></div>
-                <p style="font-size: 0.82rem; color: var(--text-secondary); line-height: 1.45; margin-bottom: 0.85rem; min-height: 2.6rem;">
-                  Rapid transition into high-frequency unvoiced /f/ noise followed by /t/ plosive burst.
-                </p>
-              </div>
-              <div>
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.65rem; font-size: 0.8rem; color: var(--text-muted);">
-                  <span id="speaker-badge-left">Speaker #1 of 3801</span>
-                  <span style="font-weight: 600; color: var(--primary);">16kHz WAV</span>
-                </div>
-                <div style="display: flex; gap: 0.5rem;">
-                  <button class="btn-card-play" onclick="event.stopPropagation(); window.audioStudio.playWord('left')" aria-label="Play sound for LEFT">
-                    <span class="play-icon" aria-hidden="true">▶</span>
-                    <span>Hear Sound</span>
-                  </button>
-                  <button class="btn-card-cycle" onclick="event.stopPropagation(); window.audioStudio.cycleSpeaker('left')" title="Hear a different volunteer voice for LEFT">
-                    <span>🎲 Next Voice</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <!-- 6. RIGHT -->
-            <div class="audio-command-card" data-word="right" id="card-right" onclick="window.audioStudio.handleCardClick(event, 'right')">
-              <div>
-                <div class="card-top-row">
-                  <div class="card-word-title">
-                    <span>RIGHT</span>
-                    <span class="card-ipa-tag">/raɪt/</span>
-                  </div>
-                  <div class="mini-equalizer" title="Equalizer activity"><span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span></div>
-                </div>
-                <div style="margin-bottom: 0.6rem;"><span class="badge badge-secondary" style="font-size: 0.78rem;">Approximant /r/ + Diphthong + Stop</span></div>
-                <p style="font-size: 0.82rem; color: var(--text-secondary); line-height: 1.45; margin-bottom: 0.85rem; min-height: 2.6rem;">
-                  Characteristic dipped third formant (F3) rising into sharp unvoiced /t/ burst.
-                </p>
-              </div>
-              <div>
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.65rem; font-size: 0.8rem; color: var(--text-muted);">
-                  <span id="speaker-badge-right">Speaker #1 of 3778</span>
-                  <span style="font-weight: 600; color: var(--primary);">16kHz WAV</span>
-                </div>
-                <div style="display: flex; gap: 0.5rem;">
-                  <button class="btn-card-play" onclick="event.stopPropagation(); window.audioStudio.playWord('right')" aria-label="Play sound for RIGHT">
-                    <span class="play-icon" aria-hidden="true">▶</span>
-                    <span>Hear Sound</span>
-                  </button>
-                  <button class="btn-card-cycle" onclick="event.stopPropagation(); window.audioStudio.cycleSpeaker('right')" title="Hear a different volunteer voice for RIGHT">
-                    <span>🎲 Next Voice</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <!-- 7. ON -->
-            <div class="audio-command-card" data-word="on" id="card-on" onclick="window.audioStudio.handleCardClick(event, 'on')">
-              <div>
-                <div class="card-top-row">
-                  <div class="card-word-title">
-                    <span>ON</span>
-                    <span class="card-ipa-tag">/ɒn/</span>
-                  </div>
-                  <div class="mini-equalizer" title="Equalizer activity"><span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span></div>
-                </div>
-                <div style="margin-bottom: 0.6rem;"><span class="badge badge-secondary" style="font-size: 0.78rem;">Open Back Vowel + Alveolar Nasal</span></div>
-                <p style="font-size: 0.82rem; color: var(--text-secondary); line-height: 1.45; margin-bottom: 0.85rem; min-height: 2.6rem;">
-                  Warm, resonant nasal murmur, low spectral centroid, sustained formant bandwidth.
-                </p>
-              </div>
-              <div>
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.65rem; font-size: 0.8rem; color: var(--text-muted);">
-                  <span id="speaker-badge-on">Speaker #1 of 3845</span>
-                  <span style="font-weight: 600; color: var(--primary);">16kHz WAV</span>
-                </div>
-                <div style="display: flex; gap: 0.5rem;">
-                  <button class="btn-card-play" onclick="event.stopPropagation(); window.audioStudio.playWord('on')" aria-label="Play sound for ON">
-                    <span class="play-icon" aria-hidden="true">▶</span>
-                    <span>Hear Sound</span>
-                  </button>
-                  <button class="btn-card-cycle" onclick="event.stopPropagation(); window.audioStudio.cycleSpeaker('on')" title="Hear a different volunteer voice for ON">
-                    <span>🎲 Next Voice</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <!-- 8. OFF -->
-            <div class="audio-command-card" data-word="off" id="card-off" onclick="window.audioStudio.handleCardClick(event, 'off')">
-              <div>
-                <div class="card-top-row">
-                  <div class="card-word-title">
-                    <span>OFF</span>
-                    <span class="card-ipa-tag">/ɒf/</span>
-                  </div>
-                  <div class="mini-equalizer" title="Equalizer activity"><span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span></div>
-                </div>
-                <div style="margin-bottom: 0.6rem;"><span class="badge badge-secondary" style="font-size: 0.78rem;">Open Back Vowel + Labiodental Fricative</span></div>
-                <p style="font-size: 0.82rem; color: var(--text-secondary); line-height: 1.45; margin-bottom: 0.85rem; min-height: 2.6rem;">
-                  Vowel resonance immediately diffusing into broadband turbulent unvoiced hiss.
-                </p>
-              </div>
-              <div>
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.65rem; font-size: 0.8rem; color: var(--text-muted);">
-                  <span id="speaker-badge-off">Speaker #1 of 3745</span>
-                  <span style="font-weight: 600; color: var(--primary);">16kHz WAV</span>
-                </div>
-                <div style="display: flex; gap: 0.5rem;">
-                  <button class="btn-card-play" onclick="event.stopPropagation(); window.audioStudio.playWord('off')" aria-label="Play sound for OFF">
-                    <span class="play-icon" aria-hidden="true">▶</span>
-                    <span>Hear Sound</span>
-                  </button>
-                  <button class="btn-card-cycle" onclick="event.stopPropagation(); window.audioStudio.cycleSpeaker('off')" title="Hear a different volunteer voice for OFF">
-                    <span>🎲 Next Voice</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <!-- 9. STOP -->
-            <div class="audio-command-card" data-word="stop" id="card-stop" onclick="window.audioStudio.handleCardClick(event, 'stop')">
-              <div>
-                <div class="card-top-row">
-                  <div class="card-word-title">
-                    <span>STOP</span>
-                    <span class="card-ipa-tag">/stɒp/</span>
-                  </div>
-                  <div class="mini-equalizer" title="Equalizer activity"><span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span></div>
-                </div>
-                <div style="margin-bottom: 0.6rem;"><span class="badge badge-danger" style="font-size: 0.78rem;">Sibilant + Unvoiced Stop + Bilabial</span></div>
-                <p style="font-size: 0.82rem; color: var(--text-secondary); line-height: 1.45; margin-bottom: 0.85rem; min-height: 2.6rem;">
-                  Sharp initial high-frequency /s/ hiss (high ZCR >0.18), silent stop gap, followed by plosive burst.
-                </p>
-              </div>
-              <div>
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.65rem; font-size: 0.8rem; color: var(--text-muted);">
-                  <span id="speaker-badge-stop">Speaker #1 of 3872</span>
-                  <span style="font-weight: 600; color: var(--primary);">16kHz WAV</span>
-                </div>
-                <div style="display: flex; gap: 0.5rem;">
-                  <button class="btn-card-play" onclick="event.stopPropagation(); window.audioStudio.playWord('stop')" aria-label="Play sound for STOP">
-                    <span class="play-icon" aria-hidden="true">▶</span>
-                    <span>Hear Sound</span>
-                  </button>
-                  <button class="btn-card-cycle" onclick="event.stopPropagation(); window.audioStudio.cycleSpeaker('stop')" title="Hear a different volunteer voice for STOP">
-                    <span>🎲 Next Voice</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <!-- 10. GO -->
-            <div class="audio-command-card" data-word="go" id="card-go" onclick="window.audioStudio.handleCardClick(event, 'go')">
-              <div>
-                <div class="card-top-row">
-                  <div class="card-word-title">
-                    <span>GO</span>
-                    <span class="card-ipa-tag">/ɡoʊ/</span>
-                  </div>
-                  <div class="mini-equalizer" title="Equalizer activity"><span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span></div>
-                </div>
-                <div style="margin-bottom: 0.6rem;"><span class="badge badge-success" style="font-size: 0.78rem;">Velar Plosive + Back Diphthong</span></div>
-                <p style="font-size: 0.82rem; color: var(--text-secondary); line-height: 1.45; margin-bottom: 0.85rem; min-height: 2.6rem;">
-                  Low-frequency voiced onset, resonant vocal tract harmonics, low spectral centroid (<1300 Hz).
-                </p>
-              </div>
-              <div>
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.65rem; font-size: 0.8rem; color: var(--text-muted);">
-                  <span id="speaker-badge-go">Speaker #1 of 3880</span>
-                  <span style="font-weight: 600; color: var(--primary);">16kHz WAV</span>
-                </div>
-                <div style="display: flex; gap: 0.5rem;">
-                  <button class="btn-card-play" onclick="event.stopPropagation(); window.audioStudio.playWord('go')" aria-label="Play sound for GO">
-                    <span class="play-icon" aria-hidden="true">▶</span>
-                    <span>Hear Sound</span>
-                  </button>
-                  <button class="btn-card-cycle" onclick="event.stopPropagation(); window.audioStudio.cycleSpeaker('go')" title="Hear a different volunteer voice for GO">
-                    <span>🎲 Next Voice</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.75rem; text-align: center;">
-            Google Speech Commands Dataset: 10 core command categories loaded from local disk.
-          </div>
+          <!-- Populated by JavaScript -->
+          <div style="text-align: center; padding: 2rem;"><span class="spinner"></span> Loading dataset statistics...</div>
         </div>
 
         <div class="explainer-box">
@@ -717,6 +310,27 @@
           </div>
 
           <div id="chart-pca-2d" style="width: 100%; height: 500px;"></div>
+
+          <!-- Interactive PCA Sample Inspector -->
+          <div id="pca-point-inspector" class="pca-inspector-card" style="display: none;" role="region" aria-live="polite" aria-label="PCA Clip Inspector">
+            <div class="pca-inspector-left">
+              <div id="pca-insp-word" class="pca-point-badge">STOP</div>
+              <div>
+                <div style="font-weight: 700; font-size: 1.05rem;" id="pca-insp-title">Dataset Speech Sample</div>
+                <div style="font-size: 0.85rem; color: var(--text-muted);" id="pca-insp-details">
+                  Cluster 1 • Speaker #004ae714 • PC1: +2.41, PC2: -0.85
+                </div>
+              </div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+              <button id="btn-play-pca-sample" class="btn btn-primary" style="padding: 0.5rem 1.15rem; font-size: 0.9rem;">
+                ▶ Play This Clip
+              </button>
+              <button id="btn-close-pca-insp" class="btn btn-secondary" style="padding: 0.5rem 0.85rem; font-size: 0.85rem;" aria-label="Close Inspector">
+                ✕
+              </button>
+            </div>
+          </div>
         </div>
 
         <!-- PCA 3D and Loadings Grid -->
@@ -755,19 +369,34 @@
         </div>
         <p class="card-desc">
           Commands that share acoustic clusters or feature centroids risk being confused by voice-recognition engines.
-          Click <strong>"🔊 Compare Pair"</strong> to hear both words played back-to-back with authentic volunteer clips!
         </p>
-        <div id="pair-compare-live-status" style="display: none; margin-bottom: 1rem;"></div>
+
+        <!-- Live Confusable Pairs Audio Banner -->
+        <div id="confusable-audio-banner" class="confusable-audio-banner" style="display: none;" role="region" aria-live="polite">
+          <div style="display: flex; align-items: center; gap: 0.85rem;">
+            <span style="font-size: 1.5rem;" aria-hidden="true">🔊</span>
+            <div>
+              <strong id="confusable-banner-title">Comparing Word A vs Word B</strong>
+              <div id="confusable-banner-desc" style="font-size: 0.85rem; color: var(--text-muted);">
+                Auditioning sequential clips to demonstrate acoustic similarity...
+              </div>
+            </div>
+          </div>
+          <button id="btn-stop-comparison" class="btn btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.8rem;">
+            ⏹ Stop
+          </button>
+        </div>
+
         <div class="table-wrapper">
           <table class="data-table">
             <thead>
               <tr>
                 <th>Command Pair</th>
-                <th>Listen & Compare</th>
                 <th>Confusability Index</th>
                 <th>Cluster Overlap</th>
                 <th>Acoustic Distance</th>
                 <th>Hazard Analysis</th>
+                <th style="text-align: center;">Audition Pair</th>
               </tr>
             </thead>
             <tbody id="confusable-pairs-body">
@@ -825,16 +454,12 @@
               Click "Record" and speak clearly (e.g. say "STOP", "GO", "YES", or "NO")
             </p>
 
-            <div id="mic-live-vu" style="display: none; justify-content: center; align-items: flex-end; gap: 5px; height: 36px; margin: 0.75rem auto 1rem; width: 160px;" aria-hidden="true">
-              <span class="vu-bar" style="width: 6px; height: 8px; background: var(--primary); border-radius: 3px; transition: height 0.05s ease;"></span>
-              <span class="vu-bar" style="width: 6px; height: 12px; background: var(--primary); border-radius: 3px; transition: height 0.05s ease;"></span>
-              <span class="vu-bar" style="width: 6px; height: 18px; background: var(--accent); border-radius: 3px; transition: height 0.05s ease;"></span>
-              <span class="vu-bar" style="width: 6px; height: 26px; background: var(--accent); border-radius: 3px; transition: height 0.05s ease;"></span>
-              <span class="vu-bar" style="width: 6px; height: 34px; background: var(--danger); border-radius: 3px; transition: height 0.05s ease;"></span>
-              <span class="vu-bar" style="width: 6px; height: 26px; background: var(--accent); border-radius: 3px; transition: height 0.05s ease;"></span>
-              <span class="vu-bar" style="width: 6px; height: 18px; background: var(--accent); border-radius: 3px; transition: height 0.05s ease;"></span>
-              <span class="vu-bar" style="width: 6px; height: 12px; background: var(--primary); border-radius: 3px; transition: height 0.05s ease;"></span>
-              <span class="vu-bar" style="width: 6px; height: 8px; background: var(--primary); border-radius: 3px; transition: height 0.05s ease;"></span>
+            <!-- Live Reactive Oscilloscope & Decibel Meter -->
+            <div class="live-mic-container">
+              <canvas id="live-audio-canvas" class="live-audio-canvas" width="480" height="60" aria-label="Real-time Voice Frequency Visualizer"></canvas>
+              <div class="vu-meter-bar" title="Microphone Input Level">
+                <div id="vu-meter-fill" class="vu-meter-fill"></div>
+              </div>
             </div>
 
             <div class="recorder-controls">
@@ -1020,10 +645,9 @@
   </script>
 
   <!-- Application Scripts -->
-  <script src="/static/js/charts.js?v=2.2"></script>
-  <script src="/static/js/audio_visualizer.js?v=2.2"></script>
-  <script src="/static/js/audio_recorder.js?v=2.2"></script>
-  <script src="/static/js/app.js?v=2.2"></script>
+  <script src="/static/js/charts.js"></script>
+  <script src="/static/js/audio_recorder.js"></script>
+  <script src="/static/js/app.js"></script>
 </body>
 </html>
 

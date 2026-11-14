@@ -84,12 +84,14 @@ class AudioProcessor {
     this.audioContext = null;
     this.mediaStream = null;
     this.scriptProcessor = null;
+    this.analyser = null;
     this.recordedBuffers = [];
     this.isRecording = false;
     this.recordTimeout = null;
 
     this.initElements();
     this.bindEvents();
+    this.drawIdleVisualizer();
   }
 
   initElements() {
@@ -100,6 +102,80 @@ class AudioProcessor {
     this.uploadZone = document.getElementById('audio-drop-zone');
     this.tryItResult = document.getElementById('try-it-results');
     this.recorderBox = document.getElementById('recorder-box');
+    this.visualizerCanvas = document.getElementById('live-audio-canvas');
+    this.vuMeter = document.getElementById('vu-meter-fill');
+  }
+
+  drawIdleVisualizer() {
+    const canvas = this.visualizerCanvas;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#090d16';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = '#1e293b';
+    ctx.beginPath();
+    ctx.moveTo(0, canvas.height / 2);
+    ctx.lineTo(canvas.width, canvas.height / 2);
+    ctx.stroke();
+  }
+
+  startVisualizer() {
+    if (!this.analyser || !this.visualizerCanvas) return;
+    const canvas = this.visualizerCanvas;
+    const ctx = canvas.getContext('2d');
+    const bufferLength = this.analyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+
+    const draw = () => {
+      if (!this.isRecording) {
+        this.drawIdleVisualizer();
+        if (this.vuMeter) this.vuMeter.style.width = '0%';
+        return;
+      }
+      requestAnimationFrame(draw);
+      this.analyser.getByteTimeDomainData(dataArray);
+
+      // Compute RMS for VU meter
+      let sumSquares = 0;
+      for (let i = 0; i < bufferLength; i++) {
+        const val = (dataArray[i] - 128) / 128;
+        sumSquares += val * val;
+      }
+      const rms = Math.sqrt(sumSquares / bufferLength);
+      const meterPercent = Math.min(100, Math.round(rms * 280));
+      if (this.vuMeter) this.vuMeter.style.width = `${meterPercent}%`;
+
+      ctx.fillStyle = '#090d16';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = '#38bdf8';
+      ctx.shadowBlur = 8;
+      ctx.shadowColor = '#0284c7';
+      ctx.beginPath();
+
+      const sliceWidth = canvas.width / bufferLength;
+      let x = 0;
+
+      for (let i = 0; i < bufferLength; i++) {
+        const v = dataArray[i] / 128.0;
+        const y = (v * canvas.height) / 2;
+
+        if (i === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
+        x += sliceWidth;
+      }
+
+      ctx.lineTo(canvas.width, canvas.height / 2);
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+    };
+    draw();
   }
 
   bindEvents() {
@@ -172,27 +248,11 @@ class AudioProcessor {
       source.connect(this.scriptProcessor);
       this.scriptProcessor.connect(this.audioContext.destination);
 
-      // Connect live mic analyser for visual feedback
-      this.micAnalyser = this.audioContext.createAnalyser();
-      this.micAnalyser.fftSize = 32;
-      this.micFreqData = new Uint8Array(this.micAnalyser.frequencyBinCount);
-      source.connect(this.micAnalyser);
-
-      const vuContainer = document.getElementById('mic-live-vu');
-      if (vuContainer) vuContainer.style.display = 'flex';
-
-      const vuBars = vuContainer ? vuContainer.querySelectorAll('.vu-bar') : [];
-      const updateVU = () => {
-        if (!this.isRecording) return;
-        this.micAnalyser.getByteFrequencyData(this.micFreqData);
-        for (let i = 0; i < vuBars.length; i++) {
-          const val = this.micFreqData[i % this.micFreqData.length] / 255.0;
-          const h = Math.max(6, Math.round(val * 34));
-          vuBars[i].style.height = `${h}px`;
-        }
-        this.vuAnimationId = requestAnimationFrame(updateVU);
-      };
-      this.vuAnimationId = requestAnimationFrame(updateVU);
+      // Analyser for real-time oscilloscope
+      this.analyser = this.audioContext.createAnalyser();
+      this.analyser.fftSize = 256;
+      source.connect(this.analyser);
+      this.startVisualizer();
 
       this.isRecording = true;
       this.recorderBox.classList.add('recording');
@@ -216,13 +276,6 @@ class AudioProcessor {
   stopRecording() {
     if (this.recordTimeout) clearTimeout(this.recordTimeout);
     if (!this.isRecording) return;
-
-    if (this.vuAnimationId) {
-      cancelAnimationFrame(this.vuAnimationId);
-      this.vuAnimationId = null;
-    }
-    const vuContainer = document.getElementById('mic-live-vu');
-    if (vuContainer) vuContainer.style.display = 'none';
 
     this.isRecording = false;
     this.recorderBox.classList.remove('recording');

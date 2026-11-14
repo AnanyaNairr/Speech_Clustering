@@ -199,8 +199,8 @@ function renderPcaScatter(pcaData, labels, words, colorMode = 'cluster', userPoi
         mode: 'markers',
         type: 'scatter',
         name: `Cluster ${cId}`,
-        text: idxs.map(i => `Word: "${words[i]}"<br>Cluster: ${cId}`),
-        hoverinfo: 'text',
+        customdata: idxs.map(i => ({ idx: i, word: words[i], cluster: cId })),
+        hovertemplate: '<b>Word: "%{customdata.word}"</b><br>Cluster: %{customdata.cluster}<br>PC1: %{x:.2f}, PC2: %{y:.2f}<br><span style="color:#38bdf8;">🔊 Click point to hear audio clip</span><extra></extra>',
         marker: {
           color: COLORBLIND_PALETTE[cId % COLORBLIND_PALETTE.length],
           size: 7,
@@ -223,8 +223,8 @@ function renderPcaScatter(pcaData, labels, words, colorMode = 'cluster', userPoi
         mode: 'markers',
         type: 'scatter',
         name: `Word: "${word}"`,
-        text: idxs.map(i => `Word: "${word}"<br>Cluster: ${labels[i]}`),
-        hoverinfo: 'text',
+        customdata: idxs.map(i => ({ idx: i, word: word, cluster: labels[i] })),
+        hovertemplate: '<b>Word: "%{customdata.word}"</b><br>Cluster: %{customdata.cluster}<br>PC1: %{x:.2f}, PC2: %{y:.2f}<br><span style="color:#38bdf8;">🔊 Click point to hear audio clip</span><extra></extra>',
         marker: {
           color: COLORBLIND_PALETTE[wIdx % COLORBLIND_PALETTE.length],
           size: 7,
@@ -273,7 +273,19 @@ function renderPcaScatter(pcaData, labels, words, colorMode = 'cluster', userPoi
     legend: { orientation: 'h', y: -0.25 },
   };
 
-  Plotly.newPlot('chart-pca-2d', traces, layout, { responsive: true });
+  const chartEl = document.getElementById('chart-pca-2d');
+  Plotly.newPlot(chartEl, traces, layout, { responsive: true }).then(() => {
+    if (chartEl && chartEl.on) {
+      chartEl.removeAllListeners && chartEl.removeAllListeners('plotly_click');
+      chartEl.on('plotly_click', (data) => {
+        if (!data || !data.points || data.points.length === 0) return;
+        const pt = data.points[0];
+        if (pt.customdata && typeof window.onPcaPointClicked === 'function') {
+          window.onPcaPointClicked(pt.customdata, pt.x, pt.y);
+        }
+      });
+    }
+  });
 }
 
 /**

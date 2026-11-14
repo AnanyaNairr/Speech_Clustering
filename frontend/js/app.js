@@ -93,10 +93,29 @@ function setupEventListeners() {
       await changeActiveModel(kVal, distVal);
     });
   }
+
+  // PCA Point Inspector Close
+  const closeInspBtn = document.getElementById('btn-close-pca-insp');
+  if (closeInspBtn) {
+    closeInspBtn.addEventListener('click', () => {
+      const inspector = document.getElementById('pca-point-inspector');
+      if (inspector) inspector.style.display = 'none';
+      if (window.audioManager) window.audioManager.stopAll();
+    });
+  }
+
+  // Stop Confusable Comparison
+  const stopCompBtn = document.getElementById('btn-stop-comparison');
+  if (stopCompBtn) {
+    stopCompBtn.addEventListener('click', () => {
+      if (window.audioManager) window.audioManager.stopAll();
+    });
+  }
 }
 
 function goToStep(step) {
   if (step < 1 || step > 5) return;
+  if (window.audioManager) window.audioManager.stopAll();
   window.appState.currentStep = step;
 
   // Update Stepper UI
@@ -161,27 +180,14 @@ async function loadInitialPipelineStatus() {
     const status = await res.json();
     window.appState.datasetStatus = status;
 
-    // Load rich audio metadata for words
-    let wordsInfo = [];
-    if (window.audioStudio) {
-      wordsInfo = await window.audioStudio.loadWordsMetadata();
-    }
-
     // Load Preprocessing
-    let prep = null;
-    try {
-      const prepRes = await fetch('/api/preprocessing');
-      if (prepRes.ok) {
-        prep = await prepRes.json();
-        window.appState.prepData = prep;
-        renderStep2(prep);
-      }
-    } catch (e) {
-      console.warn('Could not load preprocessing:', e);
+    const prepRes = await fetch('/api/preprocessing');
+    if (prepRes.ok) {
+      const prep = await prepRes.json();
+      window.appState.prepData = prep;
+      renderStep1(status, prep);
+      renderStep2(prep);
     }
-
-    // Always render Step 1 with full audio command studio
-    renderStep1(status, prep, wordsInfo);
 
     // Load Clustering Metrics
     const clustRes = await fetch('/api/clustering');
@@ -202,37 +208,497 @@ async function loadInitialPipelineStatus() {
       renderStep5(anal);
     }
 
+    // Load Audio Vocabulary Metadata
+    window.audioManager = new VocabularyAudioManager();
+    await window.audioManager.loadMetadata();
+    if (window.appState.prepData && window.appState.datasetStatus) {
+      renderStep1(window.appState.datasetStatus, window.appState.prepData);
+    }
+
   } catch (err) {
     console.error('Failed to load initial pipeline status:', err);
   }
 }
 
-function renderStep1(status, prep, wordsInfo) {
+/**
+ * --------------------------------------------------------------------------
+ * VOCABULARY AUDIO MANAGER & LIVE VISUALIZERS
+ * --------------------------------------------------------------------------
+ */
+class VocabularyAudioManager {
+  constructor() {
+    this.audio = null;
+    this.activeWord = null;
+    this.activeFilename = null;
+    this.speakerIndices = {};
+    this.metadata = {};
+    this.isTourPlaying = false;
+    this.tourIndex = 0;
+    this.tourTimeout = null;
+    this.animFrame = null;
+  }
+
+  async loadMetadata() {
+    try {
+      const res = await fetch('/api/audio/words_metadata');
+      if (res.ok) {
+        const data = await res.json();
+        this.metadata = data.words || {};
+      }
+    } catch (err) {
+      console.warn('Could not fetch words metadata:', err);
+    }
+  }
+
+  stopAll() {
+    this.isTourPlaying = false;
+    if (this.tourTimeout) clearTimeout(this.tourTimeout);
+    if (this.audio) {
+      this.audio.pause();
+      this.audio.currentTime = 0;
+      this.audio = null;
+    }
+    if (this.animFrame) cancelAnimationFrame(this.animFrame);
+    this.clearPlayingCards();
+    this.updateHud(null);
+    this.resetCompareButtons();
+
+    const canvas = document.getElementById('hud-visualizer-canvas');
+    if (canvas) {
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
+    const pcaBtn = document.getElementById('btn-play-pca-sample');
+    if (pcaBtn) pcaBtn.innerHTML = '▶ Play This Clip';
+  }
+
+  clearPlayingCards() {
+    document.querySelectorAll('.vocab-card').forEach(c => {
+      c.classList.remove('is-playing');
+      const icon = c.querySelector('.play-icon');
+      const label = c.querySelector('.play-label');
+      if (icon) icon.textContent = '▶';
+      if (label) label.textContent = 'Listen';
+    });
+    this.activeWord = null;
+  }
+
+  resetCompareButtons() {
+    document.querySelectorAll('.btn-compare-pair').forEach(b => {
+      b.classList.remove('is-playing');
+      b.innerHTML = '🔊 Compare A vs B';
+    });
+    const banner = document.getElementById('confusable-audio-banner');
+    if (banner) banner.style.display = 'none';
+  }
+
+  async playWord(word, customIndex = null) {
+    if (this.activeWord === word && this.audio && !this.audio.paused && customIndex === null) {
+      this.stopAll();
+      return;
+    }
+
+    this.stopAll();
+
+    const meta = this.metadata[word] || {};
+    const sampleFiles = meta.sample_files || [];
+    let idx = customIndex !== null ? customIndex : (this.speakerIndices[word] || 0);
+    if (sampleFiles.length > 0) {
+      idx = idx % sampleFiles.length;
+    }
+    this.speakerIndices[word] = idx;
+
+    const audioUrl = `/api/audio/sample/${word}?index=${idx}&t=${Date.now()}`;
+    const audio = new Audio(audioUrl);
+    this.audio = audio;
+    this.activeWord = word;
+
+    const card = document.getElementById(`vocab-card-${word}`);
+    if (card) {
+      card.classList.add('is-playing');
+      const icon = card.querySelector('.play-icon');
+      const label = card.querySelector('.play-label');
+      if (icon) icon.textContent = '⏸';
+      if (label) label.textContent = 'Playing';
+    }
+
+    const currentFilename = sampleFiles[idx] || '';
+    const speakerId = currentFilename.split('_')[0] || (idx + 1);
+    this.updateHud({
+      word: word.toUpperCase(),
+      ipa: meta.ipa || '',
+      role: meta.accessibility_role || 'Command',
+      speaker: speakerId,
+    });
+
+    this.initCanvasAnimation();
+
+    audio.onended = () => {
+      if (card) {
+        card.classList.remove('is-playing');
+        const icon = card.querySelector('.play-icon');
+        const label = card.querySelector('.play-label');
+        if (icon) icon.textContent = '▶';
+        if (label) label.textContent = 'Listen';
+      }
+      this.updateHud(null);
+      this.activeWord = null;
+    };
+
+    audio.onerror = (e) => {
+      console.error('Audio playback error:', e);
+      this.clearPlayingCards();
+      this.updateHud(null);
+    };
+
+    try {
+      await audio.play();
+    } catch (e) {
+      console.warn('Playback prevented or aborted:', e);
+    }
+  }
+
+  shuffleSpeaker(word) {
+    const meta = this.metadata[word] || {};
+    const sampleFiles = meta.sample_files || [];
+    const count = sampleFiles.length > 0 ? sampleFiles.length : 10;
+    const nextIdx = ((this.speakerIndices[word] || 0) + 1) % count;
+    this.speakerIndices[word] = nextIdx;
+
+    const speakerLabel = document.getElementById(`speaker-label-${word}`);
+    const nextSpeaker = (sampleFiles[nextIdx] || '').split('_')[0] || (nextIdx + 1);
+    if (speakerLabel) {
+      speakerLabel.textContent = `#${nextSpeaker}`;
+    }
+
+    this.playWord(word, nextIdx);
+  }
+
+  async startTour() {
+    this.stopAll();
+    const words = window.appState.datasetStatus?.core_words || [
+      'yes', 'no', 'up', 'down', 'left', 'right', 'on', 'off', 'stop', 'go'
+    ];
+    this.isTourPlaying = true;
+    this.tourIndex = 0;
+
+    const playNext = async () => {
+      if (!this.isTourPlaying || this.tourIndex >= words.length) {
+        this.stopAll();
+        return;
+      }
+      const w = words[this.tourIndex];
+      this.tourIndex++;
+      await this.playWord(w);
+
+      if (this.audio) {
+        this.audio.onended = () => {
+          this.clearPlayingCards();
+          this.tourTimeout = setTimeout(() => {
+            playNext();
+          }, 350);
+        };
+      } else {
+        playNext();
+      }
+    };
+
+    await playNext();
+  }
+
+  async comparePair(word1, word2, btnElement = null) {
+    this.stopAll();
+    const banner = document.getElementById('confusable-audio-banner');
+    const title = document.getElementById('confusable-banner-title');
+    const desc = document.getElementById('confusable-banner-desc');
+
+    if (banner) {
+      banner.style.display = 'flex';
+      if (title) title.innerHTML = `Comparing <strong style="color:var(--primary); font-size:1.1rem;">${word1.toUpperCase()}</strong> vs <strong style="color:var(--accent); font-size:1.1rem;">${word2.toUpperCase()}</strong>`;
+      if (desc) desc.textContent = `Auditioning sequential clips to demonstrate acoustic similarity...`;
+    }
+
+    if (btnElement) {
+      btnElement.classList.add('is-playing');
+      btnElement.innerHTML = '🔊 Playing Pair...';
+    }
+
+    // Play Word 1
+    const audio1 = new Audio(`/api/audio/sample/${word1}?t=${Date.now()}`);
+    this.audio = audio1;
+    this.updateHud({
+      word: word1.toUpperCase(),
+      ipa: (this.metadata[word1] || {}).ipa || '',
+      role: 'Hazard Pair A',
+      speaker: 'Sample A',
+    });
+    this.initCanvasAnimation();
+
+    audio1.onended = () => {
+      if (desc) desc.innerHTML = `<span style="color:var(--primary); font-weight:700;">● Played ${word1.toUpperCase()}</span> — now playing ${word2.toUpperCase()}...`;
+      this.tourTimeout = setTimeout(() => {
+        // Play Word 2
+        const audio2 = new Audio(`/api/audio/sample/${word2}?t=${Date.now()}`);
+        this.audio = audio2;
+        this.updateHud({
+          word: word2.toUpperCase(),
+          ipa: (this.metadata[word2] || {}).ipa || '',
+          role: 'Hazard Pair B',
+          speaker: 'Sample B',
+        });
+        this.initCanvasAnimation();
+
+        audio2.onended = () => {
+          if (desc) desc.innerHTML = `✓ Finished comparison. Notice vowel resonances and consonant releases!`;
+          if (btnElement) {
+            btnElement.classList.remove('is-playing');
+            btnElement.innerHTML = '🔊 Compare A vs B';
+          }
+          this.updateHud(null);
+        };
+        audio2.play();
+      }, 400);
+    };
+
+    try {
+      await audio1.play();
+    } catch (e) {
+      console.warn('Pair comparison playback error:', e);
+    }
+  }
+
+  async playClip(word, filename) {
+    if (this.audio && !this.audio.paused && this.activeFilename === filename) {
+      this.stopAll();
+      return;
+    }
+
+    this.stopAll();
+    const url = `/api/audio/clip?word=${encodeURIComponent(word)}&file_name=${encodeURIComponent(filename)}`;
+    const audio = new Audio(url);
+    this.audio = audio;
+    this.activeWord = word;
+    this.activeFilename = filename;
+
+    this.updateHud({
+      word: word.toUpperCase(),
+      ipa: (this.metadata[word] || {}).ipa || '',
+      role: 'PCA Point Exemplar',
+      speaker: filename.split('_')[0],
+    });
+
+    const playBtn = document.getElementById('btn-play-pca-sample');
+    if (playBtn) playBtn.innerHTML = '⏸ Pause Clip';
+
+    this.initCanvasAnimation();
+
+    audio.onended = () => {
+      if (playBtn) playBtn.innerHTML = '▶ Play This Clip';
+      this.updateHud(null);
+      this.activeFilename = null;
+    };
+
+    try {
+      await audio.play();
+    } catch (e) {
+      console.warn('Clip playback error:', e);
+    }
+  }
+
+  updateHud(info) {
+    const dot = document.getElementById('hud-status-dot');
+    const label = document.getElementById('hud-now-playing');
+    if (!label) return;
+
+    if (info) {
+      if (dot) dot.classList.add('active');
+      label.innerHTML = `Now Playing: <strong style="color: var(--primary);">${info.word}</strong> <span style="font-family: monospace; font-size: 0.9rem; color: var(--accent);">${info.ipa}</span> • Speaker <strong style="font-family: monospace;">#${info.speaker}</strong> <span class="badge badge-secondary" style="font-size:0.75rem;">${info.role}</span>`;
+    } else {
+      if (dot) dot.classList.remove('active');
+      label.innerHTML = `Click any command card below to hear real voice clips from the dataset`;
+    }
+  }
+
+  initCanvasAnimation() {
+    const canvas = document.getElementById('hud-visualizer-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    let phase = 0;
+
+    const render = () => {
+      if (!this.audio || this.audio.paused) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        return;
+      }
+      this.animFrame = requestAnimationFrame(render);
+      phase += 0.2;
+      ctx.fillStyle = document.documentElement.getAttribute('data-theme') === 'dark' ? '#1a2338' : '#f1f5f9';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = '#38bdf8';
+      ctx.shadowBlur = 6;
+      ctx.shadowColor = '#0284c7';
+      ctx.beginPath();
+      const numPoints = 28;
+      const step = canvas.width / numPoints;
+      for (let i = 0; i <= numPoints; i++) {
+        const x = i * step;
+        const envelope = Math.sin((i / numPoints) * Math.PI);
+        const y = (canvas.height / 2) + Math.sin(i * 0.5 + phase) * (canvas.height / 2.6) * envelope;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+    };
+    render();
+  }
+}
+
+// Global Callback when user clicks a point on the PCA scatter plot
+window.onPcaPointClicked = function(pointData, x, y) {
+  const inspector = document.getElementById('pca-point-inspector');
+  const wordBadge = document.getElementById('pca-insp-word');
+  const title = document.getElementById('pca-insp-title');
+  const details = document.getElementById('pca-insp-details');
+  const playBtn = document.getElementById('btn-play-pca-sample');
+
+  if (!inspector) return;
+  inspector.style.display = 'flex';
+
+  const word = pointData.word;
+  const cluster = pointData.cluster;
+  const idx = pointData.idx;
+  const filename = window.appState.analysis?.file_names?.[idx] || `${word}_sample_${idx}.wav`;
+  const speakerId = filename.split('_')[0];
+
+  if (wordBadge) wordBadge.textContent = word.toUpperCase();
+  if (title) title.innerHTML = `Speech Command Sample: "<strong>${word.toUpperCase()}</strong>"`;
+  if (details) {
+    details.innerHTML = `Cluster <strong>${cluster}</strong> • File: <code>${filename}</code> • Speaker: <code>#${speakerId}</code> • Coordinates: PC1=<strong>${x.toFixed(2)}</strong>, PC2=<strong>${y.toFixed(2)}</strong>`;
+  }
+
+  if (playBtn) {
+    playBtn.innerHTML = '▶ Play This Clip';
+    playBtn.onclick = () => {
+      window.audioManager.playClip(word, filename);
+    };
+  }
+
+  inspector.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+};
+
+function renderStep1(status, prep) {
   const container = document.getElementById('step-1-content');
   if (!container) return;
 
-  const totalClips = (prep && prep.log && prep.log.initial_sample_count) ? prep.log.initial_sample_count : 2000;
-  const statClipsEl = document.getElementById('stat-total-clips');
-  if (statClipsEl) {
-    statClipsEl.textContent = totalClips.toLocaleString();
-  }
+  const totalClips = prep.log.initial_sample_count || 2000;
+  const wordClasses = prep.log.word_classes || status.core_words;
+  const meta = window.audioManager?.metadata || {};
 
-  // Update speaker badges with real dataset clip counts from backend
-  if (wordsInfo && wordsInfo.length > 0) {
-    wordsInfo.forEach(w => {
-      const badge = document.getElementById(`speaker-badge-${w.word}`);
-      if (badge && w.total_clips) {
-        const curIdx = (window.audioStudio && window.audioStudio.currentSpeakerIndices[w.word]) || 0;
-        badge.textContent = `Speaker #${curIdx + 1} of ${w.total_clips}`;
-      }
-    });
-  }
+  container.innerHTML = `
+    <div class="grid-4" style="margin-bottom: 1.5rem;">
+      <div class="stat-tile">
+        <div class="stat-label">Core Commands</div>
+        <div class="stat-value" style="color: var(--primary);">${wordClasses.length} Words</div>
+        <div class="stat-sub">Balanced vocabulary</div>
+      </div>
+      <div class="stat-tile">
+        <div class="stat-label">Total Audio Clips</div>
+        <div class="stat-value">${totalClips}</div>
+        <div class="stat-sub">200 clips per command</div>
+      </div>
+      <div class="stat-tile">
+        <div class="stat-label">Clip Duration</div>
+        <div class="stat-value">1.00s</div>
+        <div class="stat-sub">16,000 samples @ 16kHz mono</div>
+      </div>
+      <div class="stat-tile">
+        <div class="stat-label">Audio Integrations</div>
+        <div class="stat-value" style="color: var(--success);">Clean</div>
+        <div class="stat-sub">Padded/Trimmed seamlessly</div>
+      </div>
+    </div>
 
-  // Attach canvas to visualizer engine
-  const canvasEl = document.getElementById('studio-audio-canvas');
-  if (canvasEl && window.audioStudio) {
-    window.audioStudio.attachCanvas(canvasEl);
-  }
+    <!-- Live Audio Master HUD -->
+    <div class="audio-hud-bar" role="region" aria-label="Audio Audition HUD">
+      <div class="hud-info">
+        <div id="hud-status-dot" class="hud-status-dot" aria-hidden="true"></div>
+        <div>
+          <div style="font-size: 0.76rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.05em;">
+            Interactive Speech Command Deck
+          </div>
+          <div id="hud-now-playing" style="font-size: 1.05rem; font-weight: 700; color: var(--text-primary);">
+            Click any command card below to hear real voice clips from the dataset
+          </div>
+        </div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 0.85rem; flex-wrap: wrap;">
+        <canvas id="hud-visualizer-canvas" class="hud-visualizer-canvas" width="220" height="38" aria-label="Audio Waveform Display"></canvas>
+        <button id="btn-play-tour" class="btn btn-primary" onclick="window.audioManager.startTour()" style="font-size: 0.85rem; padding: 0.45rem 1rem;">
+          ▶ Play All (Tour)
+        </button>
+        <button id="btn-stop-audio" class="btn btn-secondary" onclick="window.audioManager.stopAll()" style="font-size: 0.85rem; padding: 0.45rem 0.85rem;">
+          ⏹ Stop
+        </button>
+      </div>
+    </div>
+
+    <!-- 10 Interactive Audio Word Cards -->
+    <div class="vocab-grid">
+      ${wordClasses.map(w => {
+        const m = meta[w] || {};
+        const ipa = m.ipa || '';
+        const role = m.accessibility_role || 'Navigation';
+        const desc = m.sound_desc || 'Acoustic voice command';
+        const sampleFiles = m.sample_files || [];
+        const initialSpeaker = sampleFiles.length > 0 ? sampleFiles[0].split('_')[0] : 'default';
+
+        return `
+          <div class="vocab-card" id="vocab-card-${w}" data-word="${w}">
+            <div>
+              <div class="vocab-card-header">
+                <div>
+                  <span class="vocab-category-tag">${role}</span>
+                  <div class="vocab-word-title">${w}</div>
+                </div>
+                <span class="vocab-ipa" title="IPA phonetic transcription">${ipa}</span>
+              </div>
+              <p class="vocab-sound-desc">${desc}</p>
+            </div>
+
+            <div>
+              <div style="font-size: 0.78rem; color: var(--text-muted); margin-bottom: 0.65rem;">
+                Speaker: <strong id="speaker-label-${w}" style="font-family: monospace;">#${initialSpeaker}</strong> 
+                <span style="opacity: 0.75;">(200 clips)</span>
+              </div>
+              <div class="vocab-footer">
+                <button class="btn-play-word" onclick="window.audioManager.playWord('${w}')" aria-label="Listen to audio of word ${w}">
+                  <span class="play-icon" aria-hidden="true">▶</span>
+                  <span class="play-label">Listen</span>
+                  <div class="eq-bars" aria-hidden="true">
+                    <span class="eq-bar"></span>
+                    <span class="eq-bar"></span>
+                    <span class="eq-bar"></span>
+                    <span class="eq-bar"></span>
+                  </div>
+                </button>
+                <button class="btn-shuffle-voice" onclick="window.audioManager.shuffleSpeaker('${w}')" title="Audition another volunteer speaker for ${w}" aria-label="Audition another speaker for ${w}">
+                  🔀 Next Voice
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+
+    <div style="margin-top: 1.25rem; font-size: 0.85rem; color: var(--text-muted); text-align: center;">
+      📁 Dataset Directory: <code>${status.dataset_path}</code> • 200 random clips per word sampled with seed 42
+    </div>
+  `;
 }
 
 function renderStep2(prep) {
@@ -362,9 +828,8 @@ function renderStep4(anal) {
           <strong>Dominant Spoken Words:</strong>
           <div style="display: flex; gap: 0.5rem; margin-top: 0.35rem; flex-wrap: wrap;">
             ${p.word_composition.slice(0, 4).map(w => `
-              <span class="badge badge-secondary" style="font-size: 0.85rem; display: inline-flex; align-items: center; gap: 0.35rem;">
+              <span class="badge badge-secondary" style="font-size: 0.85rem;">
                 <strong style="text-transform: uppercase;">${w.word}</strong>: ${w.percentage}%
-                <button class="sound-preview-btn" onclick="window.audioStudio.playWord('${w.word}')" title="Listen to '${w.word}'">🔊</button>
               </span>
             `).join('')}
           </div>
@@ -399,11 +864,6 @@ function renderStep4(anal) {
     cpContainer.innerHTML = anal.confusable_pairs.slice(0, 8).map(cp => `
       <tr style="${cp.is_critical_risk ? 'background: var(--danger-light);' : ''}">
         <td><strong style="text-transform: uppercase;">${cp.word1}</strong> & <strong style="text-transform: uppercase;">${cp.word2}</strong></td>
-        <td>
-          <button class="pair-compare-badge-btn" onclick="window.audioStudio.playPairBackToBack('${cp.word1}', '${cp.word2}')" title="Play both words sequentially to hear phonetic similarity">
-            🔊 Compare Pair
-          </button>
-        </td>
         <td><strong>${cp.confusability_score.toFixed(3)}</strong></td>
         <td>${(cp.cluster_overlap_sim * 100).toFixed(1)}%</td>
         <td>${cp.acoustic_centroid_distance.toFixed(2)}</td>
@@ -412,6 +872,11 @@ function renderStep4(anal) {
             ${cp.is_critical_risk ? 'CRITICAL SAFETY RISK' : 'Moderate'}
           </span>
           <div style="font-size: 0.8rem; margin-top: 0.25rem;">${cp.critical_warning || 'Phonetically close commands'}</div>
+        </td>
+        <td style="text-align: center;">
+          <button class="btn-compare-pair" onclick="window.audioManager.comparePair('${cp.word1}', '${cp.word2}', this)" title="Listen to ${cp.word1.toUpperCase()} vs ${cp.word2.toUpperCase()} sequential playback" aria-label="Audition comparison between ${cp.word1} and ${cp.word2}">
+            🔊 Compare A vs B
+          </button>
         </td>
       </tr>
     `).join('');

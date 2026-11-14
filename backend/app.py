@@ -8,11 +8,11 @@ import logging
 from typing import Dict, List, Optional, Any
 import numpy as np
 import pandas as pd
-import joblib
 from fastapi import FastAPI, UploadFile, File, Form, Query, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+import joblib
 
 from .feature_extractor import (
     extract_dataset,
@@ -48,118 +48,72 @@ CLEAN_CSV = os.path.join(DATA_DIR, "features_clean.csv")
 PREP_LOG_FILE = os.path.join(DATA_DIR, "preprocessing_log.json")
 REPORT_HTML_PATH = os.path.join(DATA_DIR, "acoustic_clustering_report.html")
 REPORT_PDF_PATH = os.path.join(DATA_DIR, "acoustic_clustering_report.pdf")
+CLUSTERING_CACHE_PATH = os.path.join(DATA_DIR, "clustering_cache.joblib")
 
 os.makedirs(DATA_DIR, exist_ok=True)
 
-# Detailed Acoustic and Phonetic Metadata for the 10 Core Commands
 WORD_METADATA = {
     "yes": {
-        "word": "yes",
-        "display": "YES",
         "ipa": "/jɛs/",
-        "category": "Palatal Glide + Front Vowel + Fricative /s/",
-        "acoustic_summary": "High-frequency sibilant hiss (>3500 Hz), elevated zero-crossing rate, bright spectral centroid.",
-        "accessibility_role": "Primary confirmation / selection command in assistive interfaces.",
-        "safety_notes": "Acoustically distinct from 'no', making binary yes/no decisions relatively robust."
+        "category": "Sibilant Fricative + Palatal Glide",
+        "sound_desc": "High-pitched hiss onset with rising palatal formant",
+        "accessibility_role": "Affirmation / Confirmation",
     },
     "no": {
-        "word": "no",
-        "display": "NO",
         "ipa": "/noʊ/",
-        "category": "Nasal Consonant /n/ + Back Diphthong /oʊ/",
-        "acoustic_summary": "Low spectral centroid (~1150 Hz), rich low-frequency formant resonance, low zero-crossing rate.",
-        "accessibility_role": "Primary cancellation / rejection command.",
-        "safety_notes": "High acoustic confusability with 'go' due to shared back-rounded /oʊ/ vowel rhyme."
+        "category": "Nasal + Resonant Diphthong",
+        "sound_desc": "Warm nasal onset followed by elongated vowel resonance",
+        "accessibility_role": "Rejection / Cancellation",
     },
     "up": {
-        "word": "up",
-        "display": "UP",
         "ipa": "/ʌp/",
-        "category": "Open-Mid Central Vowel /ʌ/ + Bilabial Plosive /p/",
-        "acoustic_summary": "Transient unvoiced lip-closure release, mid-range spectral energy concentration.",
-        "accessibility_role": "Vertical navigational control and increment command.",
-        "safety_notes": "Can be confused with 'on' or 'off' if terminal plosive is unreleased or masked by noise."
+        "category": "Central Vowel + Bilabial Unvoiced Plosive",
+        "sound_desc": "Short central vowel terminating in an abrupt lip stop",
+        "accessibility_role": "Vertical Navigation (Ascend)",
     },
     "down": {
-        "word": "down",
-        "display": "DOWN",
         "ipa": "/daʊn/",
-        "category": "Alveolar Stop /d/ + Diphthong /aʊ/ + Nasal /n/",
-        "acoustic_summary": "Pronounced low-frequency diphthong glide ending in nasal resonance, broad spectral bandwidth.",
-        "accessibility_role": "Vertical navigational control and decrement command.",
-        "safety_notes": "Low centroid and nasal coda place it in resonant cluster alongside 'on' and 'no'."
+        "category": "Voiced Alveolar Stop + Resonant Diphthong",
+        "sound_desc": "Deep low-frequency glide with elongated resonant decay",
+        "accessibility_role": "Vertical Navigation (Descend)",
     },
     "left": {
-        "word": "left",
-        "display": "LEFT",
         "ipa": "/lɛft/",
-        "category": "Lateral Liquid /l/ + Front Vowel + Fricative-Stop Cluster /ft/",
-        "acoustic_summary": "Rapid transition into high-frequency unvoiced /f/ noise followed by /t/ plosive burst.",
-        "accessibility_role": "Horizontal directional control / steering.",
-        "safety_notes": "Crisp terminal consonant cluster provides high acoustic distinctiveness."
+        "category": "Lateral Approximant + Labiodental Fricative + Stop",
+        "sound_desc": "Crisp multi-consonant cluster with abrupt burst",
+        "accessibility_role": "Horizontal Navigation (Left)",
     },
     "right": {
-        "word": "right",
-        "display": "RIGHT",
         "ipa": "/raɪt/",
-        "category": "Rhotic Approximant /r/ + Diphthong /aɪ/ + Alveolar Plosive /t/",
-        "accessibility_role": "Horizontal directional control / steering.",
-        "acoustic_summary": "Characteristic dipped third formant (F3) rising into sharp unvoiced /t/ burst.",
-        "safety_notes": "Phonetically opposes 'left'; distinct spectral trajectory ensures good discriminability."
+        "category": "Rhotic Glide + Diphthong + Alveolar Plosive",
+        "sound_desc": "Sweeping rhotic onset resolving into a sharp terminal burst",
+        "accessibility_role": "Horizontal Navigation (Right)",
     },
     "on": {
-        "word": "on",
-        "display": "ON",
-        "ipa": "/ɒn/",
-        "category": "Open Back Vowel /ɒ/ + Alveolar Nasal /n/",
-        "acoustic_summary": "Warm, resonant nasal murmur, low spectral centroid, sustained formant bandwidth.",
-        "accessibility_role": "System activation / power toggle command.",
-        "safety_notes": "Opposite toggle partner to 'off'; sharing an initial open vowel can cause toggle confusion."
+        "ipa": "/ɔːn/",
+        "category": "Open Vowel + Resonant Nasal",
+        "sound_desc": "Continuous vocal energy with smooth low harmonic decay",
+        "accessibility_role": "System Power (Activate)",
     },
     "off": {
-        "word": "off",
-        "display": "OFF",
-        "ipa": "/ɒf/",
-        "category": "Open Back Vowel /ɒ/ + Labiodental Fricative /f/",
-        "acoustic_summary": "Vowel resonance immediately diffusing into broadband turbulent unvoiced hiss.",
-        "accessibility_role": "System deactivation / power shutoff command.",
-        "safety_notes": "High-frequency fricative tail differentiates 'off' from 'on', but vocal fatigue can weaken the /f/."
+        "ipa": "/ɔːf/",
+        "category": "Open Vowel + Unvoiced Labiodental Fricative",
+        "sound_desc": "Warm vocal onset transitioning into white-noise hiss",
+        "accessibility_role": "System Power (Deactivate)",
     },
     "stop": {
-        "word": "stop",
-        "display": "STOP",
-        "ipa": "/stɒp/",
-        "category": "Sibilant /s/ + Unvoiced Stop /t/ + Vowel /ɒ/ + Bilabial /p/",
-        "acoustic_summary": "Sharp initial high-frequency /s/ hiss (high ZCR >0.18), silent stop gap, followed by plosive burst.",
-        "accessibility_role": "Critical emergency halt and motion cessation command.",
-        "safety_notes": "Diametrically opposed to 'go'. High phonetic discriminability is vital to avoid catastrophic crashes."
+        "ipa": "/stɑːp/",
+        "category": "Sibilant Fricative + Unvoiced Alveolar Plosive",
+        "sound_desc": "Sharp sibilant 's' followed by sudden transient release",
+        "accessibility_role": "Safety Halt (Critical Emergency)",
     },
     "go": {
-        "word": "go",
-        "display": "GO",
         "ipa": "/ɡoʊ/",
-        "category": "Voiced Velar Plosive /ɡ/ + Back Diphthong /oʊ/",
-        "acoustic_summary": "Low-frequency voiced onset, resonant vocal tract harmonics, low spectral centroid (<1300 Hz).",
-        "accessibility_role": "Execution, start, and forward motion command.",
-        "safety_notes": "Rhymes strongly with 'no' (/oʊ/). Severe hazard in voice-controlled wheelchairs or robotic arms."
-    }
+        "category": "Voiced Velar Stop + Resonant Diphthong",
+        "sound_desc": "Deep velar release sliding into an open resonant vowel",
+        "accessibility_role": "Execution / Forward (Critical)",
+    },
 }
-
-# Cache for audio file paths per word
-AUDIO_FILES_CACHE: Dict[str, List[str]] = {}
-
-def get_word_audio_files(word: str) -> List[str]:
-    """Returns sorted list of audio filenames for a given core word."""
-    w = word.lower().strip()
-    if w in AUDIO_FILES_CACHE and AUDIO_FILES_CACHE[w]:
-        return AUDIO_FILES_CACHE[w]
-
-    word_dir = os.path.join(DATASET_DIR, w)
-    if os.path.exists(word_dir):
-        files = sorted([f for f in os.listdir(word_dir) if f.lower().endswith(".wav") and not f.startswith(".")])
-        AUDIO_FILES_CACHE[w] = files
-        return files
-    return []
 
 app = FastAPI(title="Acoustic Feature Clustering for Accessibility", version="1.0.0")
 
@@ -189,8 +143,6 @@ STATE = {
 }
 
 
-CLUSTERING_CACHE_PATH = os.path.join(DATA_DIR, "clustering_cache.joblib")
-
 def ensure_pipeline_initialized():
     """Initializes the data pipeline if cached files exist on disk."""
     if STATE["df_clean"] is not None and STATE["clustering_results"] is not None:
@@ -209,16 +161,11 @@ def ensure_pipeline_initialized():
         STATE["retained_features"] = prep_log["retained_features"]
 
         if os.path.exists(CLUSTERING_CACHE_PATH):
-            logger.info("Loading precomputed clustering results from joblib cache...")
+            logger.info("Loading precomputed clustering comparison from cache...")
             clustering_res, models_cache = joblib.load(CLUSTERING_CACHE_PATH)
         else:
-            logger.info("Running clustering comparison...")
             clustering_res, models_cache = run_clustering_comparison(X_scaled, k_min=2, k_max=10, n_init=10, random_state=42)
-            try:
-                joblib.dump((clustering_res, models_cache), CLUSTERING_CACHE_PATH)
-            except Exception as e:
-                logger.warning(f"Could not save clustering cache: {e}")
-
+            joblib.dump((clustering_res, models_cache), CLUSTERING_CACHE_PATH)
         STATE["clustering_results"] = clustering_res
         STATE["models_cache"] = models_cache
 
@@ -326,6 +273,7 @@ def run_extraction(
 
     # Run clustering comparison
     clustering_res, models_cache = run_clustering_comparison(X_scaled, k_min=2, k_max=10, n_init=10, random_state=seed)
+    joblib.dump((clustering_res, models_cache), CLUSTERING_CACHE_PATH)
     STATE["clustering_results"] = clustering_res
     STATE["models_cache"] = models_cache
 
@@ -390,10 +338,112 @@ def get_current_analysis():
     if STATE["active_analysis"] is None:
         raise HTTPException(status_code=400, detail="Analysis not ready.")
 
-    # Attach words metadata for visualization
+    # Attach words and file names metadata for visualization & interactive audio playback
     res = dict(STATE["active_analysis"])
     res["words"] = STATE["df_clean"]["word"].tolist()
+    if "file_name" in STATE["df_clean"].columns:
+        res["file_names"] = STATE["df_clean"]["file_name"].tolist()
     return res
+
+
+@app.get("/api/audio/words_metadata")
+def get_words_metadata():
+    """Returns rich linguistic and acoustic metadata for all 10 core command words, plus sample clips."""
+    ensure_pipeline_initialized()
+    meta = {}
+    for word in CORE_WORDS:
+        entry = dict(WORD_METADATA.get(word, {}))
+        entry["word"] = word
+        entry["total_dataset_clips"] = 0
+        entry["sample_files"] = []
+        entry["sample_speakers"] = []
+
+        # Find sampled files from df_clean or disk
+        if STATE["df_clean"] is not None and "file_name" in STATE["df_clean"].columns:
+            df_w = STATE["df_clean"][STATE["df_clean"]["word"] == word]
+            filenames = df_w["file_name"].tolist()
+            entry["sample_count"] = len(filenames)
+            entry["sample_files"] = filenames[:15]
+            speakers = list(dict.fromkeys([f.split("_")[0] for f in filenames if "_" in f]))
+            entry["sample_speakers"] = speakers[:10]
+        else:
+            w_dir = os.path.join(DATASET_DIR, word)
+            if os.path.isdir(w_dir):
+                all_wavs = [os.path.basename(f) for f in os.listdir(w_dir) if f.endswith(".wav")]
+                entry["sample_count"] = len(all_wavs)
+                entry["sample_files"] = all_wavs[:15]
+                entry["sample_speakers"] = [f.split("_")[0] for f in all_wavs[:10]]
+
+        meta[word] = entry
+    return {"words": meta, "core_words": CORE_WORDS}
+
+
+@app.get("/api/audio/sample/{word}")
+def get_sample_audio(word: str, index: int = Query(0), randomize: bool = Query(False)):
+    """Serves a real 1-second WAV audio sample for the requested command word."""
+    word = os.path.basename(word).lower()
+    if word not in CORE_WORDS:
+        raise HTTPException(status_code=404, detail=f"Word '{word}' is not one of the 10 core commands.")
+
+    ensure_pipeline_initialized()
+    file_list = []
+    if STATE["df_clean"] is not None and "file_name" in STATE["df_clean"].columns:
+        df_w = STATE["df_clean"][STATE["df_clean"]["word"] == word]
+        file_list = df_w["file_name"].tolist()
+
+    if not file_list:
+        w_dir = os.path.join(DATASET_DIR, word)
+        if os.path.isdir(w_dir):
+            file_list = [f for f in os.listdir(w_dir) if f.endswith(".wav") and "_background_noise_" not in f]
+
+    if not file_list:
+        raise HTTPException(status_code=404, detail=f"No audio files found for word '{word}'.")
+
+    if randomize:
+        chosen_file = np.random.choice(file_list)
+    else:
+        chosen_file = file_list[index % len(file_list)]
+
+    file_path = os.path.join(DATASET_DIR, word, chosen_file)
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail=f"Audio clip '{chosen_file}' not found.")
+
+    speaker_id = chosen_file.split("_")[0] if "_" in chosen_file else "unknown"
+    return FileResponse(
+        file_path,
+        media_type="audio/wav",
+        headers={
+            "X-Word-Name": word,
+            "X-File-Name": chosen_file,
+            "X-Speaker-Id": speaker_id,
+            "Cache-Control": "public, max-age=3600",
+        },
+    )
+
+
+@app.get("/api/audio/clip")
+def get_clip_by_name(word: str = Query(...), file_name: str = Query(...)):
+    """Streams a specific WAV audio file by word and filename."""
+    word = os.path.basename(word).lower()
+    file_name = os.path.basename(file_name)
+    if word not in CORE_WORDS:
+        raise HTTPException(status_code=400, detail="Invalid word name.")
+
+    file_path = os.path.join(DATASET_DIR, word, file_name)
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail=f"Audio file '{file_name}' not found.")
+
+    speaker_id = file_name.split("_")[0] if "_" in file_name else "unknown"
+    return FileResponse(
+        file_path,
+        media_type="audio/wav",
+        headers={
+            "X-Word-Name": word,
+            "X-File-Name": file_name,
+            "X-Speaker-Id": speaker_id,
+            "Cache-Control": "public, max-age=3600",
+        },
+    )
 
 
 @app.post("/api/try_it")
@@ -492,144 +542,11 @@ def download_report_pdf():
     return FileResponse(REPORT_PDF_PATH, media_type="application/pdf", filename="acoustic_clustering_report.pdf")
 
 
-# --- Audio Explorer & Interactive Playback Endpoints ---
-
-@app.get("/api/audio/words_info")
-def get_words_info():
-    """
-    Returns rich phonetic, acoustic, and dataset metadata for all 10 core command words,
-    including sample audio counts and playback URLs.
-    """
-    words_data = []
-    for w in CORE_WORDS:
-        files = get_word_audio_files(w)
-        meta = WORD_METADATA.get(w, {
-            "word": w,
-            "display": w.upper(),
-            "ipa": f"/{w}/",
-            "category": "Voice Command",
-            "acoustic_summary": "16kHz 1-second speech sample.",
-            "accessibility_role": "Hands-free voice control command.",
-            "safety_notes": ""
-        })
-        words_data.append({
-            "word": w,
-            "display": meta["display"],
-            "ipa": meta["ipa"],
-            "category": meta["category"],
-            "acoustic_summary": meta["acoustic_summary"],
-            "accessibility_role": meta["accessibility_role"],
-            "safety_notes": meta.get("safety_notes", ""),
-            "total_clips": len(files),
-            "sample_url": f"/api/audio/sample/{w}?speaker_idx=0",
-            "sample_speakers_count": min(len(files), 50),
-        })
-    return {"words": words_data}
-
-
-@app.get("/api/audio/sample/{word}")
-def get_audio_sample(
-    word: str,
-    speaker_idx: int = Query(0, ge=0),
-    random_sample: bool = Query(False),
-):
-    """
-    Streams a genuine 1.0-second 16kHz WAV audio recording for the requested core word.
-    Supports speaker index cycling and random sampling across hundreds of volunteer voices.
-    """
-    w = word.lower().strip()
-    if w not in CORE_WORDS:
-        raise HTTPException(status_code=404, detail=f"Word '{word}' is not in the core vocabulary: {CORE_WORDS}")
-
-    files = get_word_audio_files(w)
-    if not files:
-        word_dir = os.path.join(DATASET_DIR, w)
-        raise HTTPException(status_code=404, detail=f"No audio files found in {word_dir}")
-
-    if random_sample:
-        import random
-        chosen_file = random.choice(files)
-        actual_idx = files.index(chosen_file)
-    else:
-        actual_idx = speaker_idx % len(files)
-        chosen_file = files[actual_idx]
-
-    file_path = os.path.join(DATASET_DIR, w, chosen_file)
-    if not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail=f"Audio clip file not found: {file_path}")
-
-    # Extract speaker hash from filename (e.g. '004ae714_nohash_0.wav' -> '004ae714')
-    speaker_hash = chosen_file.split("_")[0] if "_" in chosen_file else "volunteer"
-
-    headers = {
-        "X-Word": w,
-        "X-Speaker-Index": str(actual_idx),
-        "X-Speaker-Hash": speaker_hash,
-        "X-Filename": chosen_file,
-        "X-Total-Clips": str(len(files)),
-        "Cache-Control": "public, max-age=3600",
-    }
-
-    return FileResponse(
-        file_path,
-        media_type="audio/wav",
-        headers=headers,
-        filename=f"{w}_{speaker_hash}.wav"
-    )
-
-
-@app.get("/api/audio/pair_compare")
-def compare_audio_pair(word1: str, word2: str):
-    """
-    Returns audio URLs and phonetic confusability analysis for two words,
-    enabling sequential back-to-back playback and visual comparison.
-    """
-    w1, w2 = word1.lower().strip(), word2.lower().strip()
-    if w1 not in CORE_WORDS or w2 not in CORE_WORDS:
-        raise HTTPException(status_code=400, detail="Both words must be in core vocabulary.")
-
-    ensure_pipeline_initialized()
-    confusable_info = None
-    if STATE["active_analysis"] and "confusable_pairs" in STATE["active_analysis"]:
-        for p in STATE["active_analysis"]["confusable_pairs"]:
-            if {p["word1"], p["word2"]} == {w1, w2}:
-                confusable_info = p
-                break
-
-    meta1 = WORD_METADATA.get(w1, {})
-    meta2 = WORD_METADATA.get(w2, {})
-
-    return {
-        "word1": {
-            "word": w1,
-            "display": w1.upper(),
-            "ipa": meta1.get("ipa", f"/{w1}/"),
-            "category": meta1.get("category", ""),
-            "audio_url": f"/api/audio/sample/{w1}?speaker_idx=0",
-        },
-        "word2": {
-            "word": w2,
-            "display": w2.upper(),
-            "ipa": meta2.get("ipa", f"/{w2}/"),
-            "category": meta2.get("category", ""),
-            "audio_url": f"/api/audio/sample/{w2}?speaker_idx=0",
-        },
-        "analysis": confusable_info,
-    }
-
-
 # Serve Frontend
 if os.path.exists(FRONTEND_DIR):
     app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
 
     @app.get("/")
     def serve_index():
-        return FileResponse(
-            os.path.join(FRONTEND_DIR, "index.html"),
-            headers={
-                "Cache-Control": "no-cache, no-store, must-revalidate",
-                "Pragma": "no-cache",
-                "Expires": "0"
-            }
-        )
+        return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
 
