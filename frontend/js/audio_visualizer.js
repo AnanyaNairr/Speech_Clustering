@@ -38,7 +38,7 @@ class AudioStudio {
   initAudioContext() {
     if (this.audioContext) {
       if (this.audioContext.state === 'suspended') {
-        this.audioContext.resume();
+        this.audioContext.resume().catch(() => {});
       }
       return;
     }
@@ -53,11 +53,11 @@ class AudioStudio {
       this.dataArray = new Uint8Array(bufferLength);
       this.freqArray = new Uint8Array(bufferLength);
 
-      this.sourceNode = this.audioContext.createMediaElementSource(this.audioElement);
-      this.sourceNode.connect(this.analyser);
-      this.analyser.connect(this.audioContext.destination);
-
-      logger('AudioContext initialized successfully with AnalyserNode.');
+      if (!this.sourceNode) {
+        this.sourceNode = this.audioContext.createMediaElementSource(this.audioElement);
+        this.sourceNode.connect(this.analyser);
+        this.analyser.connect(this.audioContext.destination);
+      }
     } catch (e) {
       console.warn('Web Audio API context could not be connected directly to Audio element:', e);
     }

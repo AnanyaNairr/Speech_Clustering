@@ -168,13 +168,20 @@ async function loadInitialPipelineStatus() {
     }
 
     // Load Preprocessing
-    const prepRes = await fetch('/api/preprocessing');
-    if (prepRes.ok) {
-      const prep = await prepRes.json();
-      window.appState.prepData = prep;
-      renderStep1(status, prep, wordsInfo);
-      renderStep2(prep);
+    let prep = null;
+    try {
+      const prepRes = await fetch('/api/preprocessing');
+      if (prepRes.ok) {
+        prep = await prepRes.json();
+        window.appState.prepData = prep;
+        renderStep2(prep);
+      }
+    } catch (e) {
+      console.warn('Could not load preprocessing:', e);
     }
+
+    // Always render Step 1 with full audio command studio
+    renderStep1(status, prep, wordsInfo);
 
     // Load Clustering Metrics
     const clustRes = await fetch('/api/clustering');
@@ -204,8 +211,8 @@ function renderStep1(status, prep, wordsInfo) {
   const container = document.getElementById('step-1-content');
   if (!container) return;
 
-  const totalClips = prep.log.initial_sample_count || 2000;
-  const wordClasses = prep.log.word_classes || status.core_words;
+  const totalClips = (prep && prep.log && prep.log.initial_sample_count) ? prep.log.initial_sample_count : 2000;
+  const wordClasses = (prep && prep.log && prep.log.word_classes) ? prep.log.word_classes : (status && status.core_words ? status.core_words : ['yes', 'no', 'up', 'down', 'left', 'right', 'on', 'off', 'stop', 'go']);
   const wordsList = (wordsInfo && wordsInfo.length > 0) ? wordsInfo : wordClasses.map(w => ({
     word: w,
     display: w.toUpperCase(),

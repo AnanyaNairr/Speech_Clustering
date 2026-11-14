@@ -207,3 +207,4 @@ joblib>=1.3.0
 1. **Exploratory Clusters:** Clusters discovered here reflect unsupervised statistical groupings from one volunteer sample and must not be treated as permanent real-world phonetic categories.
 2. **Demographic Bias:** The Google Speech Commands dataset predominantly features clear speech from healthy adult volunteers. Speakers with motor disabilities, dysarthria, tremors, or respiratory limitations may exhibit different acoustic patterns.
 3. **Mandatory Human-in-the-Loop Validation:** Findings from this tool should guide initial vocabulary selection, but any hands-free accessibility system must undergo empirical field validation with actual intended users.
+
