@@ -16,9 +16,24 @@ window.appState = {
 };
 
 // Initialize application
+const DEFAULT_WORDS_METADATA = [
+  { word: "yes", display: "YES", ipa: "/jɛs/", category: "Palatal Glide + Fricative /s/", acoustic_summary: "High-frequency sibilant hiss (>3500 Hz), elevated zero-crossing rate, bright spectral centroid.", total_clips: 4044 },
+  { word: "no", display: "NO", ipa: "/noʊ/", category: "Nasal /n/ + Back Diphthong /oʊ/", acoustic_summary: "Low spectral centroid (~1150 Hz), rich low-frequency formant resonance, low zero-crossing rate.", total_clips: 3941 },
+  { word: "up", display: "UP", ipa: "/ʌp/", category: "Open-Mid Central Vowel + Bilabial Plosive /p/", acoustic_summary: "Transient unvoiced lip-closure release, mid-range spectral energy concentration.", total_clips: 3723 },
+  { word: "down", display: "DOWN", ipa: "/daʊn/", category: "Alveolar Stop /d/ + Diphthong + Nasal /n/", acoustic_summary: "Pronounced low-frequency diphthong glide ending in nasal resonance.", total_clips: 3917 },
+  { word: "left", display: "LEFT", ipa: "/lɛft/", category: "Lateral Liquid + Fricative-Stop Cluster /ft/", acoustic_summary: "Rapid transition into high-frequency unvoiced /f/ noise followed by /t/ plosive burst.", total_clips: 3801 },
+  { word: "right", display: "RIGHT", ipa: "/raɪt/", category: "Approximant /r/ + Diphthong + Alveolar Plosive /t/", acoustic_summary: "Dipped third formant (F3) rising into sharp unvoiced /t/ burst.", total_clips: 3778 },
+  { word: "on", display: "ON", ipa: "/ɒn/", category: "Open Back Vowel + Alveolar Nasal /n/", acoustic_summary: "Warm, resonant nasal murmur, low spectral centroid, sustained formant bandwidth.", total_clips: 3845 },
+  { word: "off", display: "OFF", ipa: "/ɒf/", category: "Open Back Vowel + Labiodental Fricative /f/", acoustic_summary: "Vowel resonance immediately diffusing into broadband turbulent unvoiced hiss.", total_clips: 3745 },
+  { word: "stop", display: "STOP", ipa: "/stɒp/", category: "Sibilant /s/ + Unvoiced Stop /t/ + Plosive /p/", acoustic_summary: "Sharp initial /s/ hiss (ZCR >0.18), silent stop gap, followed by plosive burst.", total_clips: 3872 },
+  { word: "go", display: "GO", ipa: "/ɡoʊ/", category: "Voiced Velar Plosive /ɡ/ + Back Diphthong /oʊ/", acoustic_summary: "Low-frequency voiced onset, resonant vocal tract harmonics, low spectral centroid.", total_clips: 3880 }
+];
+
 document.addEventListener('DOMContentLoaded', async () => {
   initTheme();
   setupEventListeners();
+  // Immediately render Step 1 with default metadata so the updated UI shows instantly!
+  renderStep1({ core_words: DEFAULT_WORDS_METADATA.map(w => w.word), dataset_path: 'Dataset/' }, null, DEFAULT_WORDS_METADATA);
   await loadInitialPipelineStatus();
 });
 
