@@ -16,24 +16,9 @@ window.appState = {
 };
 
 // Initialize application
-const DEFAULT_WORDS_METADATA = [
-  { word: "yes", display: "YES", ipa: "/jɛs/", category: "Palatal Glide + Fricative /s/", acoustic_summary: "High-frequency sibilant hiss (>3500 Hz), elevated zero-crossing rate, bright spectral centroid.", total_clips: 4044 },
-  { word: "no", display: "NO", ipa: "/noʊ/", category: "Nasal /n/ + Back Diphthong /oʊ/", acoustic_summary: "Low spectral centroid (~1150 Hz), rich low-frequency formant resonance, low zero-crossing rate.", total_clips: 3941 },
-  { word: "up", display: "UP", ipa: "/ʌp/", category: "Open-Mid Central Vowel + Bilabial Plosive /p/", acoustic_summary: "Transient unvoiced lip-closure release, mid-range spectral energy concentration.", total_clips: 3723 },
-  { word: "down", display: "DOWN", ipa: "/daʊn/", category: "Alveolar Stop /d/ + Diphthong + Nasal /n/", acoustic_summary: "Pronounced low-frequency diphthong glide ending in nasal resonance.", total_clips: 3917 },
-  { word: "left", display: "LEFT", ipa: "/lɛft/", category: "Lateral Liquid + Fricative-Stop Cluster /ft/", acoustic_summary: "Rapid transition into high-frequency unvoiced /f/ noise followed by /t/ plosive burst.", total_clips: 3801 },
-  { word: "right", display: "RIGHT", ipa: "/raɪt/", category: "Approximant /r/ + Diphthong + Alveolar Plosive /t/", acoustic_summary: "Dipped third formant (F3) rising into sharp unvoiced /t/ burst.", total_clips: 3778 },
-  { word: "on", display: "ON", ipa: "/ɒn/", category: "Open Back Vowel + Alveolar Nasal /n/", acoustic_summary: "Warm, resonant nasal murmur, low spectral centroid, sustained formant bandwidth.", total_clips: 3845 },
-  { word: "off", display: "OFF", ipa: "/ɒf/", category: "Open Back Vowel + Labiodental Fricative /f/", acoustic_summary: "Vowel resonance immediately diffusing into broadband turbulent unvoiced hiss.", total_clips: 3745 },
-  { word: "stop", display: "STOP", ipa: "/stɒp/", category: "Sibilant /s/ + Unvoiced Stop /t/ + Plosive /p/", acoustic_summary: "Sharp initial /s/ hiss (ZCR >0.18), silent stop gap, followed by plosive burst.", total_clips: 3872 },
-  { word: "go", display: "GO", ipa: "/ɡoʊ/", category: "Voiced Velar Plosive /ɡ/ + Back Diphthong /oʊ/", acoustic_summary: "Low-frequency voiced onset, resonant vocal tract harmonics, low spectral centroid.", total_clips: 3880 }
-];
-
 document.addEventListener('DOMContentLoaded', async () => {
   initTheme();
   setupEventListeners();
-  // Immediately render Step 1 with default metadata so the updated UI shows instantly!
-  renderStep1({ core_words: DEFAULT_WORDS_METADATA.map(w => w.word), dataset_path: 'Dataset/' }, null, DEFAULT_WORDS_METADATA);
   await loadInitialPipelineStatus();
 });
 
@@ -227,142 +212,21 @@ function renderStep1(status, prep, wordsInfo) {
   if (!container) return;
 
   const totalClips = (prep && prep.log && prep.log.initial_sample_count) ? prep.log.initial_sample_count : 2000;
-  const wordClasses = (prep && prep.log && prep.log.word_classes) ? prep.log.word_classes : (status && status.core_words ? status.core_words : ['yes', 'no', 'up', 'down', 'left', 'right', 'on', 'off', 'stop', 'go']);
-  const wordsList = (wordsInfo && wordsInfo.length > 0) ? wordsInfo : wordClasses.map(w => ({
-    word: w,
-    display: w.toUpperCase(),
-    ipa: `/${w}/`,
-    category: 'Spoken Command',
-    acoustic_summary: '1-second 16kHz audio sample.',
-    total_clips: 200,
-  }));
+  const statClipsEl = document.getElementById('stat-total-clips');
+  if (statClipsEl) {
+    statClipsEl.textContent = totalClips.toLocaleString();
+  }
 
-  container.innerHTML = `
-    <div class="grid-4" style="margin-bottom: 1.5rem;">
-      <div class="stat-tile">
-        <div class="stat-label">Core Commands</div>
-        <div class="stat-value" style="color: var(--primary);">${wordClasses.length} Words</div>
-        <div class="stat-sub">Balanced vocabulary</div>
-      </div>
-      <div class="stat-tile">
-        <div class="stat-label">Total Audio Clips</div>
-        <div class="stat-value">${totalClips}</div>
-        <div class="stat-sub">200 clips sampled per command</div>
-      </div>
-      <div class="stat-tile">
-        <div class="stat-label">Sampling Rate</div>
-        <div class="stat-value">16,000 Hz</div>
-        <div class="stat-sub">16-bit Mono PCM</div>
-      </div>
-      <div class="stat-tile">
-        <div class="stat-label">Audio Quality</div>
-        <div class="stat-value" style="color: var(--success);">Clean 1.00s</div>
-        <div class="stat-sub">Energy-aligned & zero-padded</div>
-      </div>
-    </div>
-
-    <!-- Acoustic Command Studio & Live Oscilloscope Banner -->
-    <div class="card audio-studio-panel" id="audio-studio-banner" style="margin-bottom: 1.75rem; background: var(--bg-card); border: 1px solid var(--border); box-shadow: var(--shadow-lg);">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.85rem; flex-wrap: wrap; gap: 0.75rem;">
-        <div>
-          <h4 style="font-size: 1.2rem; font-weight: 700; display: flex; align-items: center; gap: 0.6rem;">
-            <span class="live-dot" aria-hidden="true"></span>
-            <span>Acoustic Command Studio & Live Oscilloscope</span>
-          </h4>
-          <p style="font-size: 0.88rem; color: var(--text-muted); margin-top: 0.15rem;">
-            Click any command word below to stream real audio recordings from disk and watch real-time frequency resonances.
-          </p>
-        </div>
-        <div style="display: flex; align-items: center; gap: 0.6rem;">
-          <span style="font-size: 0.82rem; color: var(--text-secondary); font-weight: 600;">Slow Motion:</span>
-          <button class="btn btn-sm btn-secondary speed-btn active" data-speed="1.0" onclick="window.audioStudio.setPlaybackSpeed(1.0)">1.0x</button>
-          <button class="btn btn-sm btn-secondary speed-btn" data-speed="0.75" onclick="window.audioStudio.setPlaybackSpeed(0.75)" title="Listen at 0.75x speed to hear subtle phonetics">0.75x</button>
-          <button class="btn btn-sm btn-secondary speed-btn" data-speed="0.5" onclick="window.audioStudio.setPlaybackSpeed(0.5)" title="Listen at 0.5x half speed">0.5x</button>
-        </div>
-      </div>
-
-      <!-- Real-time Oscilloscope & Frequency Spectrum Canvas -->
-      <div style="position: relative; width: 100%; height: 110px; border-radius: var(--radius); overflow: hidden; background: var(--bg-secondary); border: 1px solid var(--border-subtle); margin-bottom: 0.5rem;">
-        <canvas id="studio-audio-canvas" style="width: 100%; height: 100%; display: block;"></canvas>
-        <div id="studio-canvas-overlay" style="position: absolute; top: 10px; left: 16px; pointer-events: none; display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap;">
-          <span id="studio-banner-word" style="font-size: 1.25rem; font-weight: 800; color: var(--text-primary); letter-spacing: 0.05em;">STOP</span>
-          <span id="studio-banner-ipa" class="badge badge-primary" style="font-family: monospace; font-size: 0.85rem;">/stɒp/</span>
-          <span id="studio-banner-speaker" class="badge badge-secondary" style="font-size: 0.8rem;">Speaker #1</span>
-          <span id="studio-banner-category" class="badge badge-warning" style="font-size: 0.8rem;">Sibilant + Plosive</span>
-        </div>
-        <div id="studio-banner-traits" style="position: absolute; bottom: 8px; left: 16px; right: 16px; pointer-events: none; font-size: 0.82rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-          High-frequency hiss /s/ (>3500 Hz), silent stop gap, sharp plosive release burst.
-        </div>
-      </div>
-    </div>
-
-    <!-- 10 Interactive Audio Command Cards -->
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
-      <div>
-        <h4 style="font-size: 1.15rem; font-weight: 700;">🔊 Interactive Command Soundboard (10 Core Words)</h4>
-        <p style="font-size: 0.85rem; color: var(--text-muted);">
-          Click <strong>"Hear Sound"</strong> on any card to listen. Use <strong>"Next Voice"</strong> to sample different volunteer speakers (varying accents, genders, and pitches).
-        </p>
-      </div>
-      <button class="btn btn-sm btn-outline" onclick="
-        const words = ['yes', 'no', 'up', 'down', 'left', 'right', 'on', 'off', 'stop', 'go'];
-        const randomWord = words[Math.floor(Math.random() * words.length)];
-        window.audioStudio.playWord(randomWord);
-      ">
-        🎲 Play Random Voice
-      </button>
-    </div>
-
-    <div class="audio-cards-grid">
-      ${wordsList.map(item => `
-        <div class="audio-command-card" data-word="${item.word}" id="card-${item.word}">
-          <div>
-            <div class="card-top-row">
-              <div class="card-word-title">
-                <span>${item.display}</span>
-                <span class="card-ipa-tag">${item.ipa}</span>
-              </div>
-              <div class="mini-equalizer" title="Equalizer activity">
-                <span class="bar"></span>
-                <span class="bar"></span>
-                <span class="bar"></span>
-                <span class="bar"></span>
-              </div>
-            </div>
-
-            <div style="margin-bottom: 0.6rem;">
-              <span class="badge badge-secondary" style="font-size: 0.78rem;">${item.category}</span>
-            </div>
-
-            <p style="font-size: 0.82rem; color: var(--text-secondary); line-height: 1.45; margin-bottom: 0.85rem; min-height: 2.6rem;">
-              ${item.acoustic_summary}
-            </p>
-          </div>
-
-          <div>
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.65rem; font-size: 0.8rem; color: var(--text-muted);">
-              <span id="speaker-badge-${item.word}">Speaker #1 of ${item.total_clips}</span>
-              <span style="font-weight: 600; color: var(--primary);">16kHz WAV</span>
-            </div>
-
-            <div style="display: flex; gap: 0.5rem;">
-              <button class="btn-card-play" onclick="window.audioStudio.playWord('${item.word}')" aria-label="Play sound for ${item.display}">
-                <span class="play-icon" aria-hidden="true">▶</span>
-                <span>Hear Sound</span>
-              </button>
-              <button class="btn-card-cycle" onclick="window.audioStudio.cycleSpeaker('${item.word}')" title="Hear a different volunteer voice for this word">
-                <span>🎲 Next Voice</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      `).join('')}
-    </div>
-
-    <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.5rem; text-align: center;">
-      Local Dataset Path: <code>${status.dataset_path}</code> (Excluding background noise folders)
-    </div>
-  `;
+  // Update speaker badges with real dataset clip counts from backend
+  if (wordsInfo && wordsInfo.length > 0) {
+    wordsInfo.forEach(w => {
+      const badge = document.getElementById(`speaker-badge-${w.word}`);
+      if (badge && w.total_clips) {
+        const curIdx = (window.audioStudio && window.audioStudio.currentSpeakerIndices[w.word]) || 0;
+        badge.textContent = `Speaker #${curIdx + 1} of ${w.total_clips}`;
+      }
+    });
+  }
 
   // Attach canvas to visualizer engine
   const canvasEl = document.getElementById('studio-audio-canvas');

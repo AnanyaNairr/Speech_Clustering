@@ -191,23 +191,35 @@ class AudioStudio {
 
     const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
 
-    if (this.analyser && this.isPlaying) {
-      this.analyser.getByteFrequencyData(this.freqArray);
-      this.analyser.getByteTimeDomainData(this.dataArray);
+    if (this.isPlaying) {
+      let hasSignal = false;
+      if (this.analyser) {
+        this.analyser.getByteFrequencyData(this.freqArray);
+        this.analyser.getByteTimeDomainData(this.dataArray);
+        for (let i = 0; i < Math.min(30, this.freqArray.length); i++) {
+          if (this.freqArray[i] > 5) { hasSignal = true; break; }
+        }
+      }
 
-      const bufferLength = this.analyser.frequencyBinCount;
+      // If playing via speech synthesis or before audio stream fills, simulate lively dynamic frequencies
+      if (!hasSignal) {
+        const t = Date.now() * 0.008;
+        for (let i = 0; i < this.freqArray.length; i++) {
+          this.freqArray[i] = Math.floor(Math.abs(Math.sin(t + i * 0.25) * Math.cos(t * 0.6 + i * 0.15)) * 190 + 35);
+          this.dataArray[i] = Math.floor(128 + Math.sin(t * 2.5 + i * 0.2) * 40 * Math.cos(t + i * 0.05));
+        }
+      }
+
+      const bufferLength = this.analyser ? this.analyser.frequencyBinCount : 128;
 
       // 1. Draw Frequency Spectrum Bars in the background
       const barWidth = (width / bufferLength) * 1.5;
       let barX = 0;
       for (let i = 0; i < bufferLength; i++) {
-        const barHeight = (this.freqArray[i] / 255.0) * (height * 0.75);
-
-        // Dynamic color based on frequency band
-        const hue = 200 + (i / bufferLength) * 80; // Cyan to purple
-        const alpha = isDark ? 0.35 : 0.25;
-        ctx.fillStyle = `hsla(${hue}, 85%, 55%, ${alpha})`;
-
+        const barHeight = (this.freqArray[i] / 255.0) * (height * 0.78);
+        const hue = 195 + (i / bufferLength) * 90; // Cyan to purple gradient
+        const alpha = isDark ? 0.45 : 0.35;
+        ctx.fillStyle = `hsla(${hue}, 90%, 55%, ${alpha})`;
         ctx.fillRect(barX, height - barHeight, barWidth - 1, barHeight);
         barX += barWidth + 1;
         if (barX > width) break;
@@ -220,8 +232,8 @@ class AudioStudio {
       waveGrad.addColorStop(0.5, '#818cf8');
       waveGrad.addColorStop(1, '#c084fc');
       ctx.strokeStyle = waveGrad;
-      ctx.shadowBlur = 12;
-      ctx.shadowColor = isDark ? 'rgba(56, 189, 248, 0.6)' : 'rgba(37, 99, 235, 0.4)';
+      ctx.shadowBlur = 14;
+      ctx.shadowColor = isDark ? 'rgba(56, 189, 248, 0.7)' : 'rgba(37, 99, 235, 0.5)';
 
       ctx.beginPath();
       const sliceWidth = width / bufferLength;
@@ -253,8 +265,31 @@ class AudioStudio {
     }
   }
 
+  handleCardClick(event, word) {
+    const card = document.getElementById(`card-${word}`) || (event.currentTarget && event.currentTarget.classList.contains('audio-command-card') ? event.currentTarget : null);
+    if (card && event) {
+      const rect = card.getBoundingClientRect();
+      const circle = document.createElement('span');
+      const diameter = Math.max(rect.width, rect.height);
+      const radius = diameter / 2;
+      circle.style.width = circle.style.height = `${diameter}px`;
+      circle.style.left = `${(event.clientX || rect.left + radius) - rect.left - radius}px`;
+      circle.style.top = `${(event.clientY || rect.top + radius) - rect.top - radius}px`;
+      circle.classList.add('audio-ripple');
+      const oldRipple = card.querySelector('.audio-ripple');
+      if (oldRipple) oldRipple.remove();
+      card.appendChild(circle);
+      setTimeout(() => circle.remove(), 600);
+    }
+    this.playWord(word);
+  }
+
   playWord(word, speakerIdx = null) {
     this.initAudioContext();
+    if (this.audioContext && this.audioContext.state === 'suspended') {
+      this.audioContext.resume().catch(() => {});
+    }
+
     const w = word.toLowerCase().trim();
 
     if (speakerIdx !== null) {
@@ -266,24 +301,109 @@ class AudioStudio {
     const currentIdx = this.currentSpeakerIndices[w];
     const url = `/api/audio/sample/${w}?speaker_idx=${currentIdx}&t=${Date.now()}`;
 
-    // If already playing this word, pause it
+    // If already playing this word, stop
     if (this.currentPlayingWord === w && this.isPlaying) {
-      this.audioElement.pause();
+      this.stopAllAudio();
       return;
     }
 
+    this.stopAllAudio();
     this.currentPlayingWord = w;
+    this.updateNowPlayingBanner(w, currentIdx);
+
+    // Try playing authentic dataset WAV clip
     this.audioElement.src = url;
     this.audioElement.playbackRate = this.playbackSpeed;
 
-    this.audioElement.play().then(() => {
-      this.updateNowPlayingBanner(w, currentIdx);
+    const playPromise = this.audioElement.play();
+    if (playPromise !== undefined) {
+      playPromise.then(() => {
+        this.isPlaying = true;
+        this.updateUIPlayStates();
+        this.startVisualizer();
+      }).catch(err => {
+        console.warn('Backend audio stream unavailable, falling back to speech synthesis:', err);
+        this.playSpeechSynthesisFallback(w);
+      });
+    } else {
+      this.isPlaying = true;
       this.updateUIPlayStates();
-    }).catch(err => {
-      console.warn('Playback prevented by browser policy or error:', err);
-      // Try again after user gesture
-      this.updateUIPlayStates();
-    });
+      this.startVisualizer();
+    }
+  }
+
+  stopAllAudio() {
+    this.isPlaying = false;
+    try {
+      this.audioElement.pause();
+      this.audioElement.currentTime = 0;
+    } catch (e) {}
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+    this.updateUIPlayStates();
+  }
+
+  playSpeechSynthesisFallback(word) {
+    this.isPlaying = true;
+    this.updateUIPlayStates();
+    this.startVisualizer();
+
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      const utter = new SpeechSynthesisUtterance(word);
+      utter.rate = this.playbackSpeed || 1.0;
+      utter.pitch = 1.0;
+      utter.lang = 'en-US';
+      utter.onend = () => {
+        this.isPlaying = false;
+        this.updateUIPlayStates();
+      };
+      utter.onerror = () => {
+        this.isPlaying = false;
+        this.updateUIPlayStates();
+      };
+      window.speechSynthesis.speak(utter);
+    } else {
+      setTimeout(() => {
+        this.isPlaying = false;
+        this.updateUIPlayStates();
+      }, 1000);
+    }
+  }
+
+  playTour() {
+    const tourWords = ['yes', 'no', 'up', 'down', 'left', 'right', 'on', 'off', 'stop', 'go'];
+    let idx = 0;
+    this.showToast('🚀 Starting Guided Acoustic Tour of All 10 Words...', 'info');
+
+    const playNext = () => {
+      if (idx >= tourWords.length) {
+        this.showToast('✅ Tour complete! All 10 core command sounds played.', 'info');
+        return;
+      }
+      const w = tourWords[idx];
+      const card = document.getElementById(`card-${w}`);
+      if (card) {
+        card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+      idx++;
+      this.playWord(w);
+
+      const onEnd = () => {
+        this.audioElement.removeEventListener('ended', onEnd);
+        setTimeout(playNext, 450);
+      };
+      this.audioElement.addEventListener('ended', onEnd);
+    };
+
+    playNext();
+  }
+
+  playRandom() {
+    const words = ['yes', 'no', 'up', 'down', 'left', 'right', 'on', 'off', 'stop', 'go'];
+    const randWord = words[Math.floor(Math.random() * words.length)];
+    this.cycleSpeaker(randWord);
   }
 
   cycleSpeaker(word) {
@@ -479,6 +599,20 @@ class AudioStudio {
 
 // Global Singleton Instance
 window.audioStudio = new AudioStudio();
+
+// Auto-attach canvas as soon as DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+  const canvasEl = document.getElementById('studio-audio-canvas');
+  if (canvasEl && window.audioStudio) {
+    window.audioStudio.attachCanvas(canvasEl);
+  }
+});
+window.addEventListener('load', () => {
+  const canvasEl = document.getElementById('studio-audio-canvas');
+  if (canvasEl && window.audioStudio) {
+    window.audioStudio.attachCanvas(canvasEl);
+  }
+});
 
 function logger(...args) {
   // console.log('[AudioStudio]', ...args);
