@@ -176,7 +176,7 @@ python run_server.py
 
 Once the server starts successfully, open the following address in your browser:
 
-**http://127.0.0.1:8000**
+**http://127.0.0.1:8000/**
 
 The application provides a guided five-step workflow:
 
